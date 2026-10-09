@@ -1,0 +1,7 @@
+DEV_LOGIN=1
+GOOGLE_CLIENT_ID=teste.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=segredo-de-teste
+OIDC_AUTH_URL=http://127.0.0.1:9555/auth
+OIDC_TOKEN_URL=http://127.0.0.1:9555/token
+OIDC_JWKS_URL=http://127.0.0.1:9555/jwks
+OIDC_ISSUER=http://127.0.0.1:9555

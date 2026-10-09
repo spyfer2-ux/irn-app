@@ -1,0 +1,28 @@
+// Igual ao wrangler.jsonc, mas com o R2 ligado: usado só nos testes locais.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // O nome precisa ser igual ao nome do Worker no painel da Cloudflare.
+  "name": "irn-app",
+  "main": "../worker/index.ts",
+  "compatibility_date": "2026-09-15",
+  "assets": {
+    "directory": "../dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Banco de dados (D1). Sem "database_id": a Cloudflare cria o banco sozinha no primeiro deploy.
+  "d1_databases": [{ "binding": "DB" }],
+
+  // Armazenamento de fotos e vídeos (R2). Para ativar: assine o R2 no painel da Cloudflare
+  // (10 GB grátis) e tire as duas barras do começo da linha abaixo.
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "irn-app-midia" }],
+
+  // Roda a cada 5 minutos: lembretes de culto e de eventos, Palavra do dia, vídeos novos do YouTube, limpeza.
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  // As variáveis GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (segredo) e ADMIN_EMAILS são cadastradas no painel da
+  // Cloudflare (Worker → Settings → Variables and Secrets). "keep_vars" impede que o deploy apague essas variáveis.
+  "keep_vars": true,
+  "observability": { "enabled": true }
+}
