@@ -16,6 +16,7 @@ import { Notices, WordDetail, Words } from './pages/Content';
 import { PrayerPage, TestimoniesPage } from './pages/Care';
 import { CampaignDetail, Campaigns, Ministries } from './pages/Groups';
 import ChurchPage, { Privacy, VisitorCard } from './pages/Church';
+import BiblePage, { BibleChapter } from './pages/Bible';
 import { Birthdays, Inbox, Login, More, NotFound, Pending, Profile } from './pages/Account';
 
 const Giving = lazy(() => import('./pages/Giving'));
@@ -71,6 +72,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/avisos" element={<Notices />} />
               <Route path="/palavra" element={<Words />} />
               <Route path="/palavra/:id" element={<WordDetail />} />
+              <Route path="/biblia" element={<BiblePage />} />
+              <Route path="/biblia/:livro/:cap" element={<BibleChapter />} />
               <Route path="/oracao" element={<PrayerPage />} />
               <Route path="/testemunhos" element={<TestimoniesPage />} />
               <Route path="/campanhas" element={<Campaigns />} />

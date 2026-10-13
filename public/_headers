@@ -10,3 +10,6 @@
 
 /sw.js
   Cache-Control: no-cache
+
+/biblia/*
+  Cache-Control: public, max-age=604800

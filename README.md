@@ -7,7 +7,8 @@ Feito para a sede da Av. dos Nacionalistas, 530 — Jardim Tango, São Paulo/SP,
 
 **Para todo mundo (sem login):** horários dos cultos com contagem regressiva e lembrete na agenda, endereço com mapa
 (Google Maps, Waze e Uber), live do culto dentro do app, vídeos do canal do YouTube (importados sozinhos a cada hora),
-agenda de eventos, Palavra do dia, cartão do visitante e notificações no celular.
+agenda de eventos, Palavra do dia, Bíblia com busca (Bíblia Livre e King James, funciona sem internet), cartão do
+visitante e notificações no celular.
 
 **Para membros (login com Google + aprovação da liderança):**
 
@@ -29,6 +30,23 @@ histórico de ações e todas as configurações (logo, endereço, horários, PI
 
 **Automático (a cada 5 minutos):** lembrete antes de cada culto, lembrete dos eventos, notificação da Palavra do dia,
 parabéns no aniversário (e aviso para a liderança), vídeos novos do YouTube, encerramento de live esquecida e limpeza.
+
+## Bíblia
+
+A tela **Bíblia** (atalho no Início e em **Mais**) traz duas versões, com troca rápida no topo:
+
+- **Bíblia Livre 2018 (BLIVRE)** — Copyright © Diego Santos, Mario Sérgio e Marco Teles, licença Creative Commons
+  Atribuição 4.0. O crédito aparece na própria tela, como a licença pede.
+- **King James 1769 (KJV)** — domínio público. Só os 66 livros; as palavras acrescentadas pelos tradutores (entre
+  colchetes no original) aparecem em itálico.
+
+Busca por palavra ou frase, sem diferença de acentos e maiúsculas (se a frase exata não existir, mostra os versículos
+com todas as palavras), com filtro Antigo/Novo Testamento, ou por referência em português ou inglês: `jo 3:16`,
+`john 3:16`, `sl 23`, `1 co 13:4-7`. Toque nos versículos para copiar ou mandar no WhatsApp. O tamanho da letra e a
+última leitura ficam guardados no aparelho, e cada livro já aberto continua disponível sem internet.
+
+Os textos ficam em `public/biblia/<versão>/<n>.json` (um arquivo por livro: 1 = Gênesis … 66 = Apocalipse). Para gerar
+de novo a partir do eBible.org: `npm run biblia`.
 
 ## Quanto custa
 
@@ -145,7 +163,7 @@ custom domain. Depois, acrescente o novo endereço de redirecionamento no Google
 irn-app/
 ├── README.md                  este guia (publicação, estrutura e manutenção)
 ├── wrangler.jsonc             configuração da Cloudflare: nome do app, banco D1, R2 (opcional), tarefas a cada 5 min
-├── package.json               bibliotecas e comandos (npm run dev, build, deploy, test, e2e, icons)
+├── package.json               bibliotecas e comandos (npm run dev, build, deploy, test, e2e, icons, biblia)
 ├── package-lock.json          versões exatas das bibliotecas
 ├── index.html                 página base do app (título, ícones, prévia para WhatsApp)
 ├── vite.config.ts             montagem das telas
@@ -153,7 +171,8 @@ irn-app/
 │
 ├── public/                    arquivos servidos como estão
 │   ├── _headers               cabeçalhos de segurança (CSP) e cache
-│   ├── sw.js                  service worker: funciona sem internet, guarda fotos e recebe notificações
+│   ├── sw.js                  service worker: funciona sem internet, guarda fotos e livros da Bíblia e recebe notificações
+│   ├── biblia/                textos da Bíblia: livre/ e kjv/, um arquivo por livro (1.json = Gênesis … 66.json = Apocalipse)
 │   └── icons/                 ícones padrão do app, logo provisória e imagem de compartilhamento
 │
 ├── src/                       TELAS DO APP (React)
@@ -166,6 +185,7 @@ irn-app/
 │   │   └── charts.tsx         gráficos dos relatórios (com versão em tabela)
 │   ├── lib/
 │   │   ├── api.ts             conversa com o servidor
+│   │   ├── bible.ts           Bíblia: livros, versões, busca sem acentos e referências ("jo 3:16")
 │   │   ├── session.tsx        quem está logado e qual o papel
 │   │   ├── format.ts          datas no horário de São Paulo, reais, textos
 │   │   ├── pix.ts             código PIX copia e cola (padrão do Banco Central)
@@ -183,6 +203,7 @@ irn-app/
 │       ├── Photos.tsx         Biblioteca de fotos, álbuns, envio e visualizador
 │       ├── Agenda.tsx         Agenda, evento e confirmação de presença
 │       ├── Content.tsx        Avisos e Palavra do dia
+│       ├── Bible.tsx          Bíblia: livros, capítulos, busca, tamanho da letra, copiar e WhatsApp (+ Bible.css)
 │       ├── Care.tsx           Pedidos de oração e testemunhos
 │       ├── Groups.tsx         Campanhas e células/grupos
 │       ├── Giving.tsx         Dízimos e ofertas
@@ -211,8 +232,10 @@ irn-app/
 │       └── admin.ts           membros, configurações, notificações, relatórios, histórico
 │
 ├── scripts/make-icons.mjs     gera os ícones padrão do app
+├── scripts/make-bible.mjs     gera public/biblia/ com os textos do eBible.org (npm run biblia)
 └── tests/                     testes automáticos
     ├── unit.test.ts           criptografia das notificações, login, PIX, valores, datas
+    ├── bible.test.ts          Bíblia: referências, busca, compartilhar e arquivos gerados
     ├── e2e.mjs                o app inteiro num celular simulado (visitante, membro, admin, mídia)
     ├── e2e-r2.mjs             fotos e vídeos com o R2 ligado
     ├── fake-google.mjs        "Google de teste" para testar o login de verdade
@@ -235,6 +258,7 @@ irn-app/
 | `/agenda`, `/agenda/:id` | Agenda e evento | Todos |
 | `/avisos` | Mural de avisos | Todos (avisos "só membros" para membros) |
 | `/palavra`, `/palavra/:id` | Palavra do dia | Todos |
+| `/biblia`, `/biblia/:livro/:cap` | Bíblia (Bíblia Livre e King James): livros, capítulos, busca, copiar e compartilhar | Todos |
 | `/oracao` | Pedidos de oração | Quem tem login |
 | `/testemunhos` | Testemunhos | Membros |
 | `/campanhas`, `/campanhas/:id` | Campanhas com diário | Membros |
@@ -275,7 +299,7 @@ irn-app/
   próprio app (`worker/schema.ts`). Arquivos no R2 ou, sem R2, no D1 em pedaços.
 - Rodar local: `npm install`, copie `tests/dev.vars.example` para `.dev.vars` e rode `npm run dev`
   (`http://localhost:8787`, com login de teste).
-- Testes: `npm test` (criptografia das notificações, login, PIX, datas), `npm run e2e` (usa o app inteiro num celular
+- Testes: `npm test` (criptografia das notificações, login, PIX, datas e Bíblia), `npm run e2e` (usa o app inteiro num celular
   simulado: visitante, membro, administrador e mídia) e
   `WRANGLER_ARGS="-c tests/wrangler.r2.jsonc --persist-to .wrangler/state-r2" E2E=tests/e2e-r2.mjs npm run e2e`
   (fotos e vídeos no R2).

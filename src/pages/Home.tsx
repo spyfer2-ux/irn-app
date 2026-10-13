@@ -26,6 +26,7 @@ import { firstName, greeting, weekdaysPhrase } from '../lib/format';
 import { Avatar, Button, MediaImg, Section, Skeleton, toastError } from '../components/ui';
 import { EventCard, NextCultCard, NoticeCard, VideoCard } from '../components/cards';
 import { InstallBanner } from './Account';
+import { BibleShortcut } from './Bible';
 
 export function useNow(ms = 30000) {
   const [now, setNow] = useState(Date.now());
@@ -148,6 +149,8 @@ export default function Home() {
             </Link>
           ))}
         </nav>
+
+        <BibleShortcut />
 
         <InstallBanner />
 

@@ -1,0 +1,216 @@
+/* ===================== Bíblia ===================== */
+
+.bible-version .seg {
+  padding: 3px;
+  gap: 2px;
+}
+.bible-version .seg button {
+  min-height: 30px;
+  font-size: 12px;
+  padding: 0 9px;
+  letter-spacing: 0.02em;
+}
+
+.bible-title {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 6px 4px;
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 620;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.bible-title svg {
+  flex: none;
+  color: var(--ink-3);
+}
+.icon-btn.on {
+  background: var(--surface-2);
+}
+
+.bible-size {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+}
+.bible-size input[type='range'] {
+  accent-color: var(--navy-3);
+}
+
+.bible-kicker {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.bible-h1 {
+  font-size: 30px;
+  margin-top: 2px;
+}
+
+.bible-text {
+  font-family: var(--serif);
+  line-height: 1.75;
+  color: var(--ink);
+  overflow-wrap: break-word;
+}
+.bible-text .bv {
+  cursor: pointer;
+  border-radius: 4px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.bible-text .bv sup {
+  font-family: var(--font);
+  font-size: 0.6em;
+  font-weight: 700;
+  color: var(--gold);
+  margin-right: 3px;
+  vertical-align: 0.55em;
+  line-height: 0;
+}
+.bible-text .bv em {
+  font-style: italic;
+  color: var(--ink-2);
+}
+.bible-text .bv.focus {
+  background: var(--gold-soft);
+}
+.bible-text .bv.sel {
+  background: var(--blue-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--blue);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.bible-nav .btn {
+  min-width: 0;
+}
+
+.bible-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--nav-h) + var(--safe-b) + 10px);
+  z-index: 40;
+  padding: 0 12px;
+  pointer-events: none;
+}
+.bible-actions-in {
+  pointer-events: auto;
+  max-width: calc(var(--max) - 24px);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 6px 6px 16px;
+  border-radius: 999px;
+  background: var(--navy);
+  color: #fff;
+  box-shadow: var(--shadow-3);
+}
+.bible-actions .icon-btn {
+  color: #fff;
+}
+.bible-actions .icon-btn.whats {
+  background: #1fa855;
+}
+
+.bible-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.bible-search .ico {
+  position: absolute;
+  left: 14px;
+  width: 20px;
+  height: 20px;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.bible-search .input {
+  padding-left: 44px;
+  padding-right: 44px;
+  border-radius: 999px;
+}
+.bible-search .input::-webkit-search-cancel-button {
+  display: none;
+}
+.bible-search .clear {
+  position: absolute;
+  right: 2px;
+  color: var(--ink-3);
+}
+
+.bible-grid {
+  display: grid;
+  gap: 8px;
+}
+.bible-grid.books {
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+.bible-grid.chapters {
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+}
+.bible-cell {
+  min-height: 46px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14.5px;
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+}
+.bible-cell.book {
+  font-size: 13.5px;
+  line-height: 1.2;
+}
+.bible-cell:hover {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+}
+.bible-cell.on {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+.bible-hit {
+  align-items: flex-start;
+}
+.bible-hit-text {
+  font-family: var(--serif);
+  font-size: 15.5px;
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.bible-hit-text mark {
+  background: var(--gold-soft);
+  color: inherit;
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px var(--gold-soft);
+  font-weight: 650;
+}
+
+.bible-credit {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  text-align: center;
+  max-width: 520px;
+  margin: 0 auto;
+}

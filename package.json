@@ -9,9 +9,10 @@
     "build": "vite build",
     "deploy": "wrangler deploy",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
-    "test": "tsx --test tests/unit.test.ts",
+    "test": "tsx --test tests/unit.test.ts tests/bible.test.ts",
     "e2e": "./tests/run-e2e.sh",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "biblia": "node scripts/make-bible.mjs"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",

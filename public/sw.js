@@ -1,9 +1,10 @@
-/* App da IRN — service worker: funciona offline (telas já abertas), deixa as fotos rápidas e recebe as notificações. */
+/* App da IRN — service worker: funciona offline (telas já abertas e livros da Bíblia já lidos), deixa as fotos rápidas e recebe as notificações. */
 const VERSION = 'irn-v1';
 const SHELL = `${VERSION}-shell`;
 const STATIC = `${VERSION}-static`;
 const MEDIA = 'irn-media';
 const MEDIA_MAX = 400;
+const BIBLE = 'irn-biblia'; // livros da Bíblia já abertos (não muda entre versões do app)
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -49,6 +50,21 @@ self.addEventListener('fetch', (event) => {
         if (res.ok && type.startsWith('image/')) {
           cache.put(req, res.clone()).then(() => trim(MEDIA, MEDIA_MAX));
         }
+        return res;
+      })(),
+    );
+    return;
+  }
+
+  // Bíblia: cada livro aberto fica guardado no aparelho (depois funciona sem internet).
+  if (url.pathname.startsWith('/biblia/') && url.pathname.endsWith('.json')) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(BIBLE);
+        const hit = await cache.match(req);
+        if (hit) return hit;
+        const res = await fetch(req);
+        if (res.ok && (res.headers.get('content-type') || '').includes('json')) await cache.put(req, res.clone());
         return res;
       })(),
     );
