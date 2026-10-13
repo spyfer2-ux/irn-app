@@ -32,6 +32,7 @@ import {
 import { Button, Chips, Empty, ErrorBox, Page, Seg, Sheet, Skeleton, toast } from '../components/ui';
 import './Bible.css';
 import { ArtShortcut, ChapterArt } from './BibleArt';
+import { KjaLink } from './BibleKja';
 
 // ---------------- versão escolhida (igual em todas as telas) ----------------
 
@@ -584,6 +585,7 @@ function Reader({ book, chapter, focus }: { book: Book; chapter: number; focus: 
 
           {verses && <p className="tiny muted center">Toque nos versículos para copiar ou compartilhar.</p>}
 
+          {verses && <KjaLink book={book} chapter={chapter} verse={selected.length ? Math.min(...selected) : focus[0]} />}
           <div className="row bible-nav">
             {prev ? (
               <Link className="btn btn-secondary grow" to={chapterPath(prev.b, prev.c)}>

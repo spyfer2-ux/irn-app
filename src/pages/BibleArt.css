@@ -36,3 +36,7 @@
 }
 .art-cell-title { font-size: 13px; font-weight: 600; line-height: 1.25; }
 .art-cell-ref { font-size: 12px; color: var(--gold, #b8892f); }
+
+/* cartão: ícone, texto e seta lado a lado */
+.art-shortcut { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.kja-link { width: 100%; justify-content: center; gap: 8px; text-decoration: none; }
