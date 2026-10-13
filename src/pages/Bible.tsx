@@ -31,6 +31,7 @@ import {
 } from '../lib/bible';
 import { Button, Chips, Empty, ErrorBox, Page, Seg, Sheet, Skeleton, toast } from '../components/ui';
 import './Bible.css';
+import { ArtShortcut, ChapterArt } from './BibleArt';
 
 // ---------------- versão escolhida (igual em todas as telas) ----------------
 
@@ -367,6 +368,7 @@ export default function BiblePage() {
                 </h3>
               </Link>
             )}
+            <ArtShortcut v={v} />
             {(['at', 'nt'] as const).map((t) => (
               <section key={t}>
                 <div className="section-title">
@@ -548,6 +550,7 @@ function Reader({ book, chapter, focus }: { book: Book; chapter: number; focus: 
             </h1>
           </div>
 
+          <ChapterArt book={book} chapter={chapter} v={v} />
           {error ? (
             <ErrorBox error={error} retry={() => setAttempt((a) => a + 1)} />
           ) : !verses ? (
