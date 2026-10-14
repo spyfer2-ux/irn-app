@@ -184,3 +184,42 @@ test('base64url ida e volta', () => {
   const b = randomBytes(100);
   assert.deepEqual(Buffer.from(b64urlToBytes(bytesToB64url(b))), b);
 });
+
+// ---------------- Cenas que pregam ----------------
+import { parseClock } from '../src/lib/clock';
+import { readScene, CHAPTERS } from '../worker/routes/scenes';
+import { BOOKS } from '../src/lib/bible';
+
+test('cenas: lê o tempo do trecho', () => {
+  assert.equal(parseClock(''), null);
+  assert.equal(parseClock('83'), 83);
+  assert.equal(parseClock('1:23'), 83);
+  assert.equal(parseClock('01:02:03'), 3723);
+  assert.equal(parseClock('1m23s'), 83);
+  assert.ok(Number.isNaN(parseClock('1:75')));
+  assert.ok(Number.isNaN(parseClock('abc')));
+});
+
+test('cenas: capítulos de cada livro batem com a Bíblia do app', () => {
+  assert.equal(CHAPTERS.length, 66);
+  BOOKS.forEach((b, i) => assert.equal(CHAPTERS[i], b.chapters, b.pt));
+});
+
+test('cenas: confere trecho e passagem', () => {
+  const ok = readScene({
+    youtube: 'https://youtu.be/dQw4w9WgXcQ?t=90',
+    start_s: 90,
+    end_s: 300,
+    title: 'Jesus e a samaritana',
+    passage: { book: 43, chapter: 4, verse: 1, verseEnd: 26 },
+    questions: ['Pergunta 1', '', 'Pergunta 2'],
+  });
+  assert.equal(ok.youtube_id, 'dQw4w9WgXcQ');
+  assert.equal(ok.bible_verse_end, 26);
+  assert.deepEqual(JSON.parse(ok.questions), ['Pergunta 1', 'Pergunta 2']);
+  const base = { youtube: 'dQw4w9WgXcQ', title: 'x', passage: { book: 43, chapter: 4 } };
+  assert.throws(() => readScene({ ...base, start_s: 300, end_s: 100 }));
+  assert.throws(() => readScene({ ...base, passage: { book: 43, chapter: 22 } }));
+  assert.throws(() => readScene({ ...base, passage: {} }));
+  assert.throws(() => readScene({ ...base, youtube: 'https://vimeo.com/123' }));
+});
