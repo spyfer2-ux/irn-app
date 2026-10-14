@@ -3,6 +3,7 @@
  * O próprio app cria e atualiza as tabelas sozinho no primeiro acesso: ninguém precisa rodar comandos.
  * Para mudar a estrutura no futuro, acrescente uma NOVA posição no fim da lista MIGRATIONS (nunca edite as antigas).
  */
+import { catalogInserts } from './scenesCatalog';
 
 const V1 = [
   `CREATE TABLE IF NOT EXISTS users (
@@ -474,7 +475,10 @@ const V3 = [
   `CREATE INDEX IF NOT EXISTS idx_scenes_bible ON scenes(bible_book, bible_chapter)`,
 ];
 
-export const MIGRATIONS: string[][] = [V1, V2, V3];
+// V4: já vem com as cenas oficiais de The Chosen (vídeos do canal oficial, com a passagem e perguntas).
+const V4 = catalogInserts();
+
+export const MIGRATIONS: string[][] = [V1, V2, V3, V4];
 
 let ready: Promise<void> | null = null;
 

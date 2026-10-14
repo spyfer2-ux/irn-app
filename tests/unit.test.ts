@@ -223,3 +223,17 @@ test('cenas: confere trecho e passagem', () => {
   assert.throws(() => readScene({ ...base, passage: {} }));
   assert.throws(() => readScene({ ...base, youtube: 'https://vimeo.com/123' }));
 });
+
+import { SCENES_CATALOG, catalogInserts } from '../worker/scenesCatalog';
+test('cenas: catálogo oficial de The Chosen é válido', () => {
+  assert.ok(SCENES_CATALOG.length >= 30);
+  assert.equal(new Set(SCENES_CATALOG.map((s) => s.yt)).size, SCENES_CATALOG.length);
+  for (const s of SCENES_CATALOG) {
+    assert.match(s.yt, /^[A-Za-z0-9_-]{11}$/, s.title);
+    const [book, chapter, v1, v2] = s.ref;
+    assert.ok(book >= 1 && book <= 66 && chapter >= 1 && chapter <= CHAPTERS[book - 1], s.title);
+    if (v2 !== undefined) assert.ok(v1 !== undefined && v2 > v1, s.title);
+    assert.ok(s.questions.length >= 2, s.title);
+  }
+  assert.equal(catalogInserts().length, SCENES_CATALOG.length);
+});
