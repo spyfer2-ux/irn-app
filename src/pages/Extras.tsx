@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Check,
   CheckCircle2,
+  EyeOff,
   ChevronRight,
   HandHelping,
   Headphones,
@@ -767,6 +768,7 @@ function SermonSheet({ sermon, onClose, onDone, onDeleted }: { sermon?: Sermon; 
 // ======================= MURAL DE AJUDA MÚTUA =======================
 
 export const HELP_CATEGORIES: { value: string; label: string }[] = [
+  { value: 'alimentos', label: 'Cesta básica / alimentos' },
   { value: 'emprego', label: 'Emprego' },
   { value: 'servicos', label: 'Serviços' },
   { value: 'doacao', label: 'Doações' },
@@ -803,7 +805,7 @@ export function HelpBoard() {
 }
 
 function HelpBoardInner() {
-  const { user, isLeader } = useSession();
+  const { isLeader } = useSession();
   const [params, setParams] = useSearchParams();
   const filtro = params.get('filtro') ?? 'mural';
   const [kind, setKind] = useState<'todos' | HelpKind>('todos');
@@ -811,14 +813,15 @@ function HelpBoardInner() {
   const qs = new URLSearchParams({ filtro });
   if (filtro === 'mural' && kind !== 'todos') qs.set('tipo', kind);
   if (filtro === 'mural' && cat !== 'todas') qs.set('categoria', cat);
-  const { data, error, loading, reload } = useApi<{ posts: HelpPost[] }>(`/ajuda?${qs}`);
+  const { data, error, loading, reload } = useApi<{ posts: HelpPost[] }>(filtro === 'interesses' ? '/ajuda?filtro=meus' : `/ajuda?${qs}`);
+  const [helping, setHelping] = useState<HelpPost | null>(null);
   const [edit, setEdit] = useState<HelpPost | 'new' | null>(null);
   const [refusing, setRefusing] = useState<HelpPost | null>(null);
 
   const options = [
     { value: 'mural', label: 'Mural' },
     { value: 'meus', label: 'Minhas publicações' },
-    ...(isLeader ? [{ value: 'pendentes', label: 'Para aprovar' }] : []),
+    ...(isLeader ? [{ value: 'pendentes', label: 'Para aprovar' }, { value: 'interesses', label: 'Quem quer ajudar' }] : []),
   ];
 
   const act = async (fn: () => Promise<unknown>, ok?: string) => {
@@ -838,7 +841,9 @@ function HelpBoardInner() {
           <HandHelping />
         </span>
         <div className="grow small" style={{ color: 'var(--ink-2)' }}>
-          “Levai as cargas uns dos outros” (Gl 6.2). Peça ou ofereça ajuda: emprego, serviços, doações, carona… A liderança aprova antes de aparecer no mural.
+          “Levai as cargas uns dos outros” (Gl 6.2). Peça ou ofereça ajuda: cesta básica, alimentos, emprego, serviços, doações, carona…
+          <br />
+          <strong>O mural é anônimo:</strong> os irmãos não veem quem publicou. Só a liderança sabe quem pediu, aprova a publicação e faz a ponte com quem quer ajudar.
         </div>
       </div>
       <Button icon={<Plus />} onClick={() => setEdit('new')}>
@@ -859,13 +864,16 @@ function HelpBoardInner() {
           <Chips value={cat} onChange={setCat} options={[{ value: 'todas', label: 'Todas' }, ...HELP_CATEGORIES]} />
         </>
       )}
-      {error && <ErrorBox error={error} retry={reload} />}
-      {loading && !data ? (
+      {filtro === 'interesses' && isLeader ? (
+        <HelpInterests />
+      ) : error ? (
+        <ErrorBox error={error} retry={reload} />
+      ) : loading && !data ? (
         <LoadingList />
       ) : data?.posts.length ? (
         data.posts.map((p) => {
-          const mine = p.user_id === user?.id;
-          const contact = p.contact ? contactHref(p.contact, p.title) : null;
+          const mine = p.mine;
+          const contact = isLeader && p.contact ? contactHref(p.contact, p.title) : null;
           const [stLabel, stTone] = STATUS_LABEL[p.status];
           return (
             <article key={p.id} className="card card-pad stack help-card" style={{ gap: 10, opacity: p.status === 'resolvido' ? 0.7 : 1 }}>
@@ -879,18 +887,32 @@ function HelpBoardInner() {
               {p.body && <p className="pre small" style={{ color: 'var(--ink-2)' }}>{p.body}</p>}
               {p.status === 'recusado' && p.review_note && <div className="alert warn small">{p.review_note}</div>}
               <div className="row">
-                <Avatar name={p.author_name} picture={p.author_picture} size={28} />
+                {p.author_name ? (
+                  <Avatar name={p.author_name} picture={p.author_picture} size={28} />
+                ) : (
+                  <span className="icon-tile gray" style={{ width: 28, height: 28, borderRadius: 99 }}>
+                    <EyeOff size={14} />
+                  </span>
+                )}
                 <div className="grow small">
-                  <span style={{ fontWeight: 600 }}>{p.author_name ?? 'Membro'}</span> <span className="muted">· {ago(p.created_at)}</span>
+                  <span style={{ fontWeight: 600 }}>{mine ? 'Você' : p.author_name ?? 'Anônimo'}</span>
+                  {p.author_name && !mine && <span className="muted"> (só a liderança vê)</span>}
+                  <span className="muted"> · {ago(p.created_at)}</span>
                 </div>
               </div>
+              {mine && <div className="tiny muted">Para os irmãos, sua publicação aparece como anônima.</div>}
               <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
                 {p.status === 'aprovado' && !mine && contact && (
                   <a className="btn btn-gold btn-sm" href={contact.href} target="_blank" rel="noreferrer">
                     {contact.icon} {contact.label}
                   </a>
                 )}
-                {p.status === 'aprovado' && !mine && p.contact && !contact && <span className="small">Contato: {p.contact}</span>}
+                {isLeader && !mine && p.contact && !contact && <span className="small">Contato: {p.contact}</span>}
+                {p.status === 'aprovado' && !mine && (
+                  <Button size="sm" variant={contact ? 'secondary' : 'gold'} icon={<HandHelping />} onClick={() => setHelping(p)}>
+                    {p.kind === 'preciso' ? 'Quero ajudar' : 'Tenho interesse'}
+                  </Button>
+                )}
                 {isLeader && p.status === 'pendente' && (
                   <>
                     <Button size="sm" variant="ok" icon={<Check />} onClick={() => void act(() => api(`/ajuda/${p.id}/moderar`, { method: 'POST', body: { status: 'aprovado' } }), 'Aprovado e publicado no mural.')}>
@@ -939,6 +961,7 @@ function HelpBoardInner() {
         void reload();
         if (pending && filtro !== 'meus') setParams({ filtro: 'meus' }, { replace: true });
       }} />}
+      {helping && <InterestSheet post={helping} onClose={() => setHelping(null)} />}
       {refusing && <RefuseSheet post={refusing} onClose={() => setRefusing(null)} onDone={() => void reload()} />}
     </div>
   );
@@ -997,7 +1020,7 @@ function HelpSheet({ post, onClose, onDone }: { post?: HelpPost; onClose: () => 
           value={title}
           onChange={setTitle}
           maxLength={100}
-          placeholder={kind === 'preciso' ? 'Ex.: Procuro vaga de auxiliar administrativo' : 'Ex.: Sou eletricista, posso ajudar irmãos'}
+          placeholder={kind === 'preciso' ? 'Ex.: Preciso de uma cesta básica este mês' : 'Ex.: Posso doar alimentos / Sou eletricista'}
         />
         <TextField label="Detalhes (opcional)" value={body} onChange={setBody} multiline rows={4} maxLength={1500} />
         <TextField
@@ -1006,9 +1029,15 @@ function HelpSheet({ post, onClose, onDone }: { post?: HelpPost; onClose: () => 
           onChange={setContact}
           maxLength={120}
           placeholder="WhatsApp ou e-mail"
-          hint="Aparece para os membros quando a publicação for aprovada. Deixe vazio para ser procurado(a) pela liderança."
+          hint="Só a liderança vê o seu contato. Deixe vazio para a liderança te procurar pelo cadastro."
         />
-        {!isLeader && <div className="small muted">A liderança revisa as publicações antes de irem para o mural, para cuidar de todos.</div>}
+        <div className="alert info small">
+          <EyeOff />
+          <span>
+            <strong>Sua publicação fica anônima.</strong> Os irmãos não veem seu nome nem seu contato — só a liderança sabe quem pediu e faz a ponte com quem quiser ajudar.
+            {!isLeader && ' A liderança aprova antes de aparecer no mural.'}
+          </span>
+        </div>
       </div>
     </Sheet>
   );
@@ -1047,5 +1076,86 @@ function RefuseSheet({ post, onClose, onDone }: { post: HelpPost; onClose: () =>
         <TextField label="Motivo (a pessoa recebe)" value={note} onChange={setNote} multiline rows={3} maxLength={300} placeholder="Ex.: Vamos conversar pessoalmente sobre isso." />
       </div>
     </Sheet>
+  );
+}
+
+function InterestSheet({ post, onClose }: { post: HelpPost; onClose: () => void }) {
+  const [message, setMessage] = useState('');
+  const { busy, run } = useAction();
+  return (
+    <Sheet
+      open
+      small
+      title={post.kind === 'preciso' ? 'Quero ajudar' : 'Tenho interesse'}
+      onClose={onClose}
+      footer={
+        <Button
+          block
+          loading={busy}
+          icon={<HandHelping />}
+          onClick={() =>
+            void run(async () => {
+              await api(`/ajuda/${post.id}/interesse`, { method: 'POST', body: { message } });
+              onClose();
+            }, 'Pronto! A liderança vai entrar em contato para combinar.')
+          }
+        >
+          Avisar a liderança
+        </Button>
+      }
+    >
+      <div className="stack">
+        <div className="small">
+          <strong>{post.title}</strong>
+        </div>
+        <div className="small" style={{ color: 'var(--ink-2)' }}>
+          Para cuidar de quem pediu, o mural é anônimo. A liderança recebe seu nome e telefone e combina a ajuda com você.
+        </div>
+        <TextField
+          label="Recado (opcional)"
+          value={message}
+          onChange={setMessage}
+          multiline
+          rows={3}
+          maxLength={300}
+          placeholder={post.kind === 'preciso' ? 'Ex.: Posso doar uma cesta básica no domingo.' : 'Ex.: Tenho interesse, pode me chamar.'}
+        />
+      </div>
+    </Sheet>
+  );
+}
+
+function HelpInterests() {
+  const { data, error, loading, reload } = useApi<{ items: { id: number; detail: string; created_at: number; name: string | null; phone: string | null; picture: string | null }[] }>(
+    '/ajuda/interesses',
+  );
+  if (error) return <ErrorBox error={error} retry={reload} />;
+  if (loading && !data) return <LoadingList />;
+  if (!data?.items.length) return <Empty icon={<HandHelping />} title="Ninguém se ofereceu ainda" text="Quando um irmão tocar em “Quero ajudar”, aparece aqui com nome e telefone." />;
+  return (
+    <div className="card">
+      <div className="list">
+        {data.items.map((it) => {
+          const wa = it.phone ? phoneLink(it.phone, `Olá, ${it.name?.split(' ')[0] ?? ''}! Aqui é da liderança, sobre o mural de ajuda.`) : '';
+          return (
+            <div key={it.id} className="list-item" style={{ cursor: 'default', alignItems: 'flex-start' }}>
+              <Avatar name={it.name} picture={it.picture} />
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 620 }}>{it.name ?? 'Membro removido'}</div>
+                <div className="small" style={{ color: 'var(--ink-2)' }}>
+                  {it.detail.replace(/^#\d+\s*/, '')}
+                </div>
+                <div className="tiny muted">{ago(it.created_at)}</div>
+              </div>
+              {wa && (
+                <a className="btn btn-gold btn-sm" href={wa} target="_blank" rel="noreferrer">
+                  <MessageCircle /> WhatsApp
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
