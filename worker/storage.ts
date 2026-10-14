@@ -12,6 +12,8 @@ export const MAX_IMAGE_R2 = 6 * 1024 * 1024;
 export const MAX_IMAGE_D1 = 2 * 1024 * 1024;
 export const MAX_VIDEO = 600 * 1024 * 1024;
 export const VIDEO_PART = 8 * 1024 * 1024;
+export const MAX_VOICE = 8 * 1024 * 1024;
+const VOICE_MIMES = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg', 'audio/aac', 'audio/x-m4a'];
 
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 const VIDEO_MIMES = ['video/mp4', 'video/quicktime', 'video/webm'];
@@ -165,6 +167,42 @@ mediaRoutes.post('/', async (c) => {
   return c.json({ id, size: bytes.length });
 });
 
+// ---------- áudio gravado no app (estilo WhatsApp): arquivo pequeno, funciona com ou sem R2 ----------
+
+mediaRoutes.post('/voice', async (c) => {
+  const u = needMedia(c);
+  const access = c.req.query('access') === 'public' ? 'public' : 'members';
+  const mime = (c.req.header('content-type') ?? '').split(';')[0].trim().toLowerCase();
+  if (!VOICE_MIMES.includes(mime)) fail(415, 'Formato de áudio não suportado.');
+  await rateLimit(c.env, `voice:${u.id}`, 60, 3600_000);
+  const bytes = new Uint8Array(await c.req.arrayBuffer());
+  if (!bytes.length) fail(400, 'Áudio vazio.');
+  if (bytes.length > MAX_VOICE) fail(413, 'Áudio muito longo (máximo de uns 30 minutos).');
+  const d = Number(c.req.query('d'));
+  const duration = Number.isFinite(d) && d > 0 ? Math.min(d, 7200) : null;
+  const id = randomToken(18);
+  const mode = storageMode(c.env);
+  const stmts: D1PreparedStatement[] = [];
+  let parts = 1;
+  if (mode === 'r2') {
+    await c.env.BUCKET!.put(key(id), bytes, { httpMetadata: { contentType: mime } });
+  } else {
+    parts = Math.ceil(bytes.length / D1_CHUNK);
+    for (let p = 0; p < parts; p++) {
+      const chunk = bytes.subarray(p * D1_CHUNK, Math.min(bytes.length, (p + 1) * D1_CHUNK));
+      stmts.push(c.env.DB.prepare('INSERT INTO media_blobs (media_id, part, data) VALUES (?, ?, ?)').bind(id, p, toB64(chunk)));
+    }
+  }
+  stmts.push(
+    c.env.DB.prepare(
+      `INSERT INTO media (id, kind, mime, size, storage, owner_id, access, status, parts, duration, created_at)
+       VALUES (?, 'audio', ?, ?, ?, ?, ?, 'ready', ?, ?, ?)`,
+    ).bind(id, mime, bytes.length, mode, u.id, access, parts, duration, now()),
+  );
+  await c.env.DB.batch(stmts);
+  return c.json({ id, size: bytes.length, duration });
+});
+
 // ---------- vídeos (envio em partes, só com R2) ----------
 
 mediaRoutes.post('/video/start', async (c) => {
@@ -289,6 +327,27 @@ export async function serveMedia(c: Ctx, m: MediaRow, opts: { download?: boolean
   for (const ch of chunks) {
     out.set(ch, o);
     o += ch.length;
+  }
+  // Pedaços (Range): o iPhone exige isso para tocar áudio e vídeo.
+  headers.set('accept-ranges', 'bytes');
+  const range = /^bytes=(\d*)-(\d*)$/.exec(c.req.header('range') ?? '');
+  if (range && (range[1] || range[2])) {
+    let start: number;
+    let end: number;
+    if (!range[1]) {
+      start = Math.max(0, total - Number(range[2]));
+      end = total - 1;
+    } else {
+      start = Number(range[1]);
+      end = range[2] ? Math.min(Number(range[2]), total - 1) : total - 1;
+    }
+    if (start >= total || start > end) {
+      headers.set('content-range', `bytes */${total}`);
+      return new Response(null, { status: 416, headers });
+    }
+    headers.set('content-range', `bytes ${start}-${end}/${total}`);
+    headers.set('content-length', String(end - start + 1));
+    return new Response(out.subarray(start, end + 1), { status: 206, headers });
   }
   headers.set('content-length', String(total));
   return new Response(out, { status: 200, headers });
