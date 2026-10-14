@@ -237,3 +237,32 @@ test('cenas: catálogo oficial de The Chosen é válido', () => {
   }
   assert.equal(catalogInserts().length, SCENES_CATALOG.length);
 });
+
+// ---------------- Novidades de The Chosen ----------------
+import { parseFeed, refFromTitle } from '../worker/routes/chosen';
+import { chosenSeedInserts, CHOSEN_SEED_COUNT } from '../worker/chosenSeed';
+import { parseReference } from '../src/lib/bible';
+
+test('the chosen: lê o feed do YouTube e separa os Shorts', () => {
+  const xml = `<feed><entry><yt:videoId>kd-h0mkFIl4</yt:videoId><title>Filming &amp; more</title>
+    <link rel="alternate" href="https://www.youtube.com/shorts/kd-h0mkFIl4"/><published>2026-10-12T21:00:22+00:00</published></entry>
+    <entry><yt:videoId>VL8DThllZAY</yt:videoId><title>Jesus Heals the Leper (Matthew 8)</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=VL8DThllZAY"/><published>2026-10-11T15:21:42+00:00</published></entry>
+    <entry><yt:videoId>bad</yt:videoId><title>x</title></entry></feed>`;
+  const items = parseFeed(xml);
+  assert.equal(items.length, 2);
+  assert.deepEqual([items[0].kind, items[0].title, items[0].ref], ['short', 'Filming & more', null]);
+  assert.deepEqual([items[1].kind, items[1].ref], ['video', 'Matthew 8']);
+  assert.equal(items[0].published_at, Date.parse('2026-10-12T21:00:22+00:00'));
+});
+
+test('the chosen: referência do título vira passagem da Bíblia do app', () => {
+  assert.equal(refFromTitle('Jesus Cleanses the Temple (Mark 11:15-18)'), 'Mark 11:15-18');
+  assert.equal(refFromTitle('I AM the Resurrection and the Life (John 11:25)'), 'John 11:25');
+  assert.equal(refFromTitle('THAT scene from Season 5, Episode Two.'), null);
+  assert.equal(refFromTitle('Healed (The Chosen Scene)'), null);
+  for (const [txt, n] of [['Mark 11:15-18', 41], ['John 11:25', 43], ['Matthew 8', 40], ['Luke 5', 42], ['mc 5:35-43', 41]] as const) {
+    assert.equal(parseReference(txt)?.book.n, n, txt);
+  }
+  assert.equal(chosenSeedInserts().length, CHOSEN_SEED_COUNT);
+});

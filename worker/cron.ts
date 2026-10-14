@@ -5,6 +5,7 @@
  * - avisa a Palavra do dia e a Mensagem do Pastor;
  * - parabeniza aniversariantes e avisa a liderança;
  * - busca vídeos novos do canal do YouTube (1 vez por hora);
+ * - busca os Shorts novos do canal oficial de The Chosen (a cada 3 horas);
  * - encerra lives esquecidas abertas e faz a limpeza diária.
  */
 import type { Env } from './types';
@@ -13,6 +14,7 @@ import { getSettings } from './settings';
 import { drain, notify } from './push';
 import { endLive } from './routes/live';
 import { syncYoutube } from './routes/videos';
+import { syncChosen } from './routes/chosen';
 import { fmtWhen } from './routes/community';
 import { cleanupMedia } from './storage';
 
@@ -148,6 +150,10 @@ export async function runCron(env: Env, at = now()): Promise<void> {
 
   await step('youtube', async () => {
     if (youtube.auto_import && at - youtube.last_sync > 55 * 60000) await syncYoutube(env);
+  });
+
+  await step('the chosen', async () => {
+    await syncChosen(env);
   });
 
   await step('limpeza', async () => {

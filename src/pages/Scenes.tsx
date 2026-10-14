@@ -14,6 +14,7 @@ import { bookByN } from '../lib/bible';
 import { Button, Chips, confirmDialog, Empty, ErrorBox, LoadingList, Page, Sheet, TextField, Toggle, toast, toastError, useAction } from '../components/ui';
 import { parseClock } from '../lib/clock';
 import { clock, passageLabel, PassageCard, PassageField, readPassage, SceneCard } from '../components/Passage';
+import { ChosenShorts, chosenRef, type ChosenItem } from '../components/ChosenReels';
 
 /** Segundo de início que veio no próprio link (…?t=83 ou &t=1m23s). */
 function startFromLink(url: string): number | null {
@@ -42,6 +43,7 @@ export default function Scenes() {
   const { isMedia } = useSession();
   const [book, setBook] = useState('');
   const [adding, setAdding] = useState(false);
+  const [fromShort, setFromShort] = useState<ChosenItem | null>(null);
   const { data, error, loading, reload } = useApi<{ scenes: Scene[] }>('/cenas');
   const all = data?.scenes ?? [];
   const books = useMemo(() => [...new Set(all.map((s) => s.bible_book))].sort((a, b) => a - b), [all]);
@@ -63,6 +65,7 @@ export default function Scenes() {
         <p className="muted" style={{ margin: 0 }}>
           Trechos da série <em>The Chosen</em> com a passagem da Bíblia, uma palavra do pastor e perguntas para conversar na célula e em família.
         </p>
+        <ChosenShorts onMakeScene={setFromShort} />
         {books.length > 1 && (
           <Chips value={book} onChange={setBook} options={[{ value: '', label: 'Todos os livros' }, ...books.map((n) => ({ value: String(n), label: bookByN(n).pt }))]} />
         )}
@@ -87,6 +90,13 @@ export default function Scenes() {
         </p>
       </div>
       {adding && <SceneSheet onClose={() => setAdding(false)} onDone={() => void reload()} />}
+      {fromShort && (
+        <SceneSheet
+          prefill={{ link: `https://youtube.com/shorts/${fromShort.youtube_id}`, title: fromShort.title, ref: chosenRef(fromShort)?.label ?? '' }}
+          onClose={() => setFromShort(null)}
+          onDone={() => void reload()}
+        />
+      )}
     </Page>
   );
 }
@@ -196,14 +206,27 @@ export function SceneDetail() {
 
 // ---------------- cadastro ----------------
 
-function SceneSheet({ scene, onClose, onDone, onDeleted }: { scene?: Scene; onClose: () => void; onDone: () => void; onDeleted?: () => void }) {
+function SceneSheet({
+  scene,
+  prefill,
+  onClose,
+  onDone,
+  onDeleted,
+}: {
+  scene?: Scene;
+  /** Vindo de um Short de "Novidades de The Chosen": já preenche link, título e passagem. */
+  prefill?: { link: string; title: string; ref: string };
+  onClose: () => void;
+  onDone: () => void;
+  onDeleted?: () => void;
+}) {
   const navigate = useNavigate();
-  const [link, setLink] = useState(scene ? `https://youtu.be/${scene.youtube_id}` : '');
+  const [link, setLink] = useState(scene ? `https://youtu.be/${scene.youtube_id}` : (prefill?.link ?? ''));
   const [start, setStart] = useState(scene ? clock(scene.start_s) : '');
   const [end, setEnd] = useState(scene?.end_s ? clock(scene.end_s) : '');
-  const [title, setTitle] = useState(scene?.title ?? '');
+  const [title, setTitle] = useState(scene?.title ?? prefill?.title.slice(0, 140) ?? '');
   const [episode, setEpisode] = useState(scene?.episode ?? '');
-  const [ref, setRef] = useState(scene ? passageLabel(scene) : '');
+  const [ref, setRef] = useState(scene ? passageLabel(scene) : (prefill?.ref ?? ''));
   const [text, setText] = useState(scene?.pastor_text ?? '');
   const [questions, setQuestions] = useState<string[]>(() => {
     const q = [...(scene?.questions ?? [])];
