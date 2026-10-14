@@ -1073,6 +1073,55 @@ p {
   line-height: 1.3;
   font-size: 14.5px;
 }
+.video-card .video-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--gold);
+}
+.passage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.passage-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.passage-text {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.65;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.passage-text sup {
+  font-family: var(--font);
+  font-size: 0.6em;
+  font-weight: 700;
+  margin-right: 3px;
+  color: var(--ink-3);
+}
+.scenes-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none !important;
+}
+.scene-questions {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 8px;
+  font-size: 16px;
+  line-height: 1.5;
+}
 .video-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));

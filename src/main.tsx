@@ -18,6 +18,7 @@ import { CampaignDetail, Campaigns, Ministries } from './pages/Groups';
 import ChurchPage, { Privacy, VisitorCard } from './pages/Church';
 import BiblePage, { BibleChapter } from './pages/Bible';
 import { HelpBoard, PastorDetail, PastorMessages, SermonDetail, Sermons } from './pages/Extras';
+import Scenes, { SceneDetail } from './pages/Scenes';
 import { MarkedVerses } from './pages/BibleMarks';
 import { Birthdays, Inbox, Login, More, NotFound, Pending, Profile } from './pages/Account';
 
@@ -76,6 +77,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/palavra/:id" element={<WordDetail />} />
               <Route path="/mensagem" element={<PastorMessages />} />
               <Route path="/mensagem/:id" element={<PastorDetail />} />
+              <Route path="/cenas" element={<Scenes />} />
+              <Route path="/cenas/:id" element={<SceneDetail />} />
               <Route path="/pregacoes" element={<Sermons />} />
               <Route path="/pregacoes/:id" element={<SermonDetail />} />
               <Route path="/ajuda" element={<HelpBoard />} />
