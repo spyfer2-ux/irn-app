@@ -114,9 +114,72 @@ export async function uploadVideo(
   onProgress: (fraction: number) => void,
   signal?: AbortSignal,
 ): Promise<{ mediaId: string; posterId: string | null }> {
+  const mediaId = await uploadLarge(file, 'video', videoMime(file), meta, access, onProgress, signal);
+  let posterId: string | null = null;
+  if (meta.poster) posterId = await uploadImage(meta.poster, 'poster', access).catch(() => null);
+  return { mediaId, posterId };
+}
+
+export function audioMime(file: File): string {
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (file.type === 'audio/mp3') return 'audio/mpeg';
+  if (file.type === 'audio/x-wav' || file.type === 'audio/wave') return 'audio/wav';
+  if (file.type === 'audio/m4a') return 'audio/x-m4a';
+  if (file.type && file.type !== 'application/octet-stream') return file.type;
+  if (ext === 'm4a') return 'audio/x-m4a';
+  if (ext === 'aac') return 'audio/aac';
+  if (ext === 'ogg' || ext === 'opus') return 'audio/ogg';
+  if (ext === 'wav') return 'audio/wav';
+  return 'audio/mpeg';
+}
+
+/** Lê a duração de um arquivo de áudio (em segundos), sem enviar nada. */
+export function audioDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('audio');
+    const done = (v: number | null) => {
+      URL.revokeObjectURL(url);
+      resolve(v);
+    };
+    const timer = setTimeout(() => done(null), 8000);
+    a.preload = 'metadata';
+    a.onloadedmetadata = () => {
+      clearTimeout(timer);
+      done(isFinite(a.duration) ? a.duration : null);
+    };
+    a.onerror = () => {
+      clearTimeout(timer);
+      done(null);
+    };
+    a.src = url;
+  });
+}
+
+/** Envia um áudio (pregação, mensagem) em partes — precisa do armazenamento R2. */
+export async function uploadAudio(
+  file: File,
+  access: 'public' | 'members',
+  onProgress: (fraction: number) => void,
+  signal?: AbortSignal,
+): Promise<{ mediaId: string; duration: number | null }> {
+  const duration = await audioDuration(file);
+  const mediaId = await uploadLarge(file, 'audio', audioMime(file), { duration, width: null, height: null, poster: null }, access, onProgress, signal);
+  return { mediaId, duration };
+}
+
+async function uploadLarge(
+  file: File,
+  kind: 'video' | 'audio',
+  mime: string,
+  meta: VideoMeta,
+  access: 'public' | 'members',
+  onProgress: (fraction: number) => void,
+  signal?: AbortSignal,
+): Promise<string> {
   const start = await api<{ id: string; partSize: number; parts: number }>('/media/video/start', {
     method: 'POST',
-    body: { mime: videoMime(file), size: file.size, access },
+    body: { mime, size: file.size, access, kind },
   });
   try {
     let sent = 0;
@@ -142,7 +205,5 @@ export async function uploadVideo(
     await api(`/media/video/${start.id}`, { method: 'DELETE' }).catch(() => undefined);
     throw e;
   }
-  let posterId: string | null = null;
-  if (meta.poster) posterId = await uploadImage(meta.poster, 'poster', access).catch(() => null);
-  return { mediaId: start.id, posterId };
+  return start.id;
 }
