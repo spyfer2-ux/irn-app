@@ -68,7 +68,8 @@ extrasRoutes.get('/mensagens', async (c) => {
     binds.push(before);
   }
   const { results } = await c.env.DB.prepare(
-    `SELECT * FROM pastor_messages WHERE ${conds.join(' AND ')} ORDER BY day DESC, id DESC LIMIT 30`,
+    `SELECT p.*, m.duration AS audio_duration FROM pastor_messages p LEFT JOIN media m ON m.id = p.audio_id
+     WHERE ${conds.map((x) => `p.${x}`).join(' AND ')} ORDER BY p.day DESC, p.id DESC LIMIT 30`,
   )
     .bind(...binds)
     .all();
@@ -77,7 +78,9 @@ extrasRoutes.get('/mensagens', async (c) => {
 
 extrasRoutes.get('/mensagens/:id{[0-9]+}', async (c) => {
   const u = c.get('user');
-  const m = await c.env.DB.prepare('SELECT * FROM pastor_messages WHERE id = ?')
+  const m = await c.env.DB.prepare(
+    'SELECT p.*, md.duration AS audio_duration FROM pastor_messages p LEFT JOIN media md ON md.id = p.audio_id WHERE p.id = ?',
+  )
     .bind(Number(c.req.param('id')))
     .first<{ visibility: string; day: string }>();
   if (!m || !visibleSet(u).includes(m.visibility)) fail(404, 'Mensagem não encontrada.');
