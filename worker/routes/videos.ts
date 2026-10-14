@@ -29,7 +29,7 @@ export function youtubeId(input: string): string | null {
   return null;
 }
 
-async function oembed(id: string): Promise<{ title?: string; author_name?: string } | null> {
+export async function oembed(id: string): Promise<{ title?: string; author_name?: string } | null> {
   try {
     const res = await fetch(
       `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`,
