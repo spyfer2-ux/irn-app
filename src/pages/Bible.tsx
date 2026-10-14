@@ -1,7 +1,7 @@
 /** Bíblia: leitura por livro e capítulo (Bíblia Livre e King James), busca por palavra, frase ou referência. */
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ALargeSmall, ArrowLeft, BookOpenText, ChevronDown, ChevronLeft, ChevronRight, Copy, MessageCircle, Search, X } from 'lucide-react';
+import { ALargeSmall, ArrowLeft, BookOpenText, ChevronDown, ChevronLeft, ChevronRight, Copy, Highlighter, ImageDown, MessageCircle, Search, StickyNote, X } from 'lucide-react';
 import {
   BOOKS,
   bookByN,
@@ -20,6 +20,7 @@ import {
   saveLastRead,
   saveVersion,
   searchBible,
+  plain,
   segments,
   shareText,
   VERSIONS,
@@ -33,6 +34,8 @@ import { Button, Chips, Empty, ErrorBox, Page, Seg, Sheet, Skeleton, toast } fro
 import './Bible.css';
 import { ArtShortcut, ChapterArt } from './BibleArt';
 import { KjaLink } from './BibleKja';
+import { colorCss, MarkSheet, VerseArtSheet } from './BibleMarks';
+import { getMark, useMarksVersion } from '../lib/marks';
 
 // ---------------- versão escolhida (igual em todas as telas) ----------------
 
@@ -378,6 +381,16 @@ export default function BiblePage() {
               </Link>
             )}
             <ArtShortcut v={v} />
+            <Link to="/biblia/marcados" className="card card-pad card-link row">
+              <div className="icon-tile gold">
+                <Highlighter />
+              </div>
+              <div className="grow">
+                <div style={{ fontWeight: 650 }}>Meus versículos</div>
+                <div className="small muted">Os versículos que você marcou e suas anotações</div>
+              </div>
+              <ChevronRight className="chev" />
+            </Link>
             {(['at', 'nt'] as const).map((t) => (
               <section key={t}>
                 <div className="section-title">
@@ -458,7 +471,10 @@ function Reader({ book, chapter, focus }: { book: Book; chapter: number; focus: 
   const [showSize, setShowSize] = useState(false);
   const [picker, setPicker] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [marking, setMarking] = useState(false);
+  const [art, setArt] = useState<{ text: string; reference: string } | null>(null);
   const scrolled = useRef(false);
+  useMarksVersion();
 
   const prev = chapter > 1 ? { b: book, c: chapter - 1 } : book.n > 1 ? { b: bookByN(book.n - 1), c: bookByN(book.n - 1).chapters } : null;
   const next = chapter < book.chapters ? { b: book, c: chapter + 1 } : book.n < 66 ? { b: bookByN(book.n + 1), c: 1 } : null;
@@ -572,11 +588,14 @@ function Reader({ book, chapter, focus }: { book: Book; chapter: number; focus: 
             <div className="bible-text" style={{ fontSize: size }} lang={VERSIONS[v].lang}>
               {verses.map((text, i) => {
                 const n = i + 1;
+                const mark = getMark(book.n, chapter, n);
+                const hl = colorCss(mark?.c);
                 return (
                   <span
                     key={n}
                     id={`v${n}`}
-                    className={`bv ${selected.includes(n) ? 'sel' : ''} ${focus.includes(n) ? 'focus' : ''}`}
+                    className={`bv ${selected.includes(n) ? 'sel' : ''} ${focus.includes(n) && !hl ? 'focus' : ''} ${hl ? 'hl' : ''}`}
+                    style={hl ? ({ '--hl': hl } as React.CSSProperties) : undefined}
                     onClick={() => toggle(n)}
                     role="button"
                     tabIndex={0}
@@ -584,6 +603,11 @@ function Reader({ book, chapter, focus }: { book: Book; chapter: number; focus: 
                     onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), toggle(n))}
                   >
                     <sup>{n}</sup>
+                    {mark?.note && (
+                      <span className="note-dot" title={mark.note} aria-label="Tem anotação">
+                        <StickyNote size={14} />
+                      </span>
+                    )}
                     {segments(text, v).map((s, j) => (s.it ? <em key={j}>{s.t}</em> : <span key={j}>{s.t}</span>))}{' '}
                   </span>
                 );
@@ -591,7 +615,7 @@ function Reader({ book, chapter, focus }: { book: Book; chapter: number; focus: 
             </div>
           )}
 
-          {verses && <p className="tiny muted center">Toque nos versículos para copiar ou compartilhar.</p>}
+          {verses && <p className="tiny muted center">Toque nos versículos para marcar, anotar, copiar ou fazer uma imagem.</p>}
 
           {verses && <KjaLink book={book} chapter={chapter} verse={selected.length ? Math.min(...selected) : focus[0]} />}
           <div className="row bible-nav">
@@ -621,6 +645,21 @@ function Reader({ book, chapter, focus }: { book: Book; chapter: number; focus: 
             <div className="grow ellipsis" style={{ fontWeight: 650 }}>
               {formatRef(book, chapter, selected, v)}
             </div>
+            <button className="icon-btn" aria-label="Marcar e anotar" title="Marcar e anotar" onClick={() => setMarking(true)}>
+              <Highlighter />
+            </button>
+            <button
+              className="icon-btn"
+              aria-label="Versículo em imagem"
+              title="Versículo em imagem"
+              onClick={() => {
+                const sorted = [...selected].sort((a, b) => a - b);
+                const text = sorted.map((n) => plain(verses[n - 1], v)).join(' ');
+                setArt({ text, reference: `${formatRef(book, chapter, sorted, v)} (${VERSIONS[v].short})` });
+              }}
+            >
+              <ImageDown />
+            </button>
             <button className="icon-btn" aria-label="Copiar" onClick={() => void copyText(selText())}>
               <Copy />
             </button>
@@ -635,6 +674,19 @@ function Reader({ book, chapter, focus }: { book: Book; chapter: number; focus: 
       )}
 
       {picker && <BookPicker v={v} current={book} onClose={() => setPicker(false)} />}
+      {marking && selected.length > 0 && (
+        <MarkSheet
+          book={book}
+          chapter={chapter}
+          verses={selected}
+          v={v}
+          onClose={() => {
+            setMarking(false);
+            setSelected([]);
+          }}
+        />
+      )}
+      {art && <VerseArtSheet text={art.text} reference={art.reference} onClose={() => setArt(null)} />}
     </>
   );
 }

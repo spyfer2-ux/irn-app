@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bell,
-  BookOpen,
   CalendarDays,
   Check,
   ChevronRight,
@@ -10,14 +9,15 @@ import {
   Gift,
   HandCoins,
   HandHeart,
+  Headphones,
   Images,
   MapPin,
+  Mic,
   PlaySquare,
   Radio,
   ShieldCheck,
   Sparkles,
   UserPlus,
-  Users,
 } from 'lucide-react';
 import { useSession } from '../lib/session';
 import { api, useApi } from '../lib/api';
@@ -27,6 +27,7 @@ import { Avatar, Button, MediaImg, Section, Skeleton, toastError } from '../comp
 import { EventCard, NextCultCard, NoticeCard, VideoCard } from '../components/cards';
 import { InstallBanner } from './Account';
 import { BibleShortcut } from './Bible';
+import { PastorHomeCard } from './Extras';
 
 export function useNow(ms = 30000) {
   const [now, setNow] = useState(Date.now());
@@ -63,8 +64,8 @@ export default function Home() {
         { to: '/oracao', label: 'Pedir oração', icon: <HandHeart />, tone: 'gold' },
         { to: '/dizimos', label: 'Dízimos e ofertas', icon: <HandCoins />, tone: 'gold' },
         { to: '/agenda', label: 'Agenda', icon: <CalendarDays />, tone: '' },
-        { to: '/palavra', label: 'Palavra', icon: <BookOpen />, tone: '' },
-        { to: '/grupos', label: 'Células e grupos', icon: <Users />, tone: '' },
+        { to: '/pregacoes', label: 'Pregações', icon: <Headphones />, tone: '' },
+        { to: '/mensagem', label: 'Mensagem do Pastor', icon: <Mic />, tone: 'gold' },
       ]
     : [
         { to: '/ao-vivo', label: 'Ao vivo', icon: <Radio />, tone: 'live' },
@@ -73,11 +74,11 @@ export default function Home() {
         { to: '/visitante', label: 'Sou visitante', icon: <UserPlus />, tone: 'gold' },
         { to: '/dizimos', label: 'Dízimos e ofertas', icon: <HandCoins />, tone: 'gold' },
         { to: '/agenda', label: 'Agenda', icon: <CalendarDays />, tone: '' },
-        { to: '/palavra', label: 'Palavra', icon: <BookOpen />, tone: '' },
-        { to: '/grupos', label: 'Células e grupos', icon: <Users />, tone: '' },
+        { to: '/pregacoes', label: 'Pregações', icon: <Headphones />, tone: '' },
+        { to: '/mensagem', label: 'Mensagem do Pastor', icon: <Mic />, tone: 'gold' },
       ];
 
-  const pendingTotal = data?.pending ? data.pending.users + data.pending.testimonies + data.pending.visitors + data.pending.requests : 0;
+  const pendingTotal = data?.pending ? data.pending.users + data.pending.testimonies + data.pending.visitors + data.pending.requests + (data.pending.help ?? 0) : 0;
 
   return (
     <>
@@ -141,6 +142,8 @@ export default function Home() {
 
         {data ? <NextCultCard cults={data.next_cults} church={church} now={now} /> : <Skeleton h={180} r={18} />}
 
+        {data?.pastor && <PastorHomeCard m={data.pastor} today={data.today} />}
+
         <nav className="quick" aria-label="Atalhos">
           {quick.map((q) => (
             <Link key={q.to + q.label} to={q.to}>
@@ -155,7 +158,7 @@ export default function Home() {
         <InstallBanner />
 
         {isLeader && pendingTotal > 0 && data?.pending && (
-          <Link to="/admin" className="card card-pad card-link row">
+          <Link to={data.pending.help === pendingTotal ? '/ajuda?filtro=pendentes' : '/admin'} className="card card-pad card-link row">
             <div className="icon-tile">
               <ShieldCheck />
             </div>
@@ -167,6 +170,7 @@ export default function Home() {
                   data.pending.testimonies && `${data.pending.testimonies} testemunho(s)`,
                   data.pending.visitors && `${data.pending.visitors} visitante(s)`,
                   data.pending.requests && `${data.pending.requests} pedido(s) para grupos`,
+                  data.pending.help && `${data.pending.help} no mural de ajuda`,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
