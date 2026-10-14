@@ -59,12 +59,20 @@ function VersionSwitch() {
   const [v, setV] = useBibleVersion();
   return (
     <div className="bible-version" title="Trocar a versão da Bíblia">
-      <Seg value={v} onChange={setV} options={[{ value: 'livre', label: 'BLIVRE' }, { value: 'kjv', label: 'KJV' }]} />
+      <Seg value={v} onChange={setV} options={[{ value: 'livre', label: 'BLIVRE' }, { value: 'kjv', label: 'KJV' }, { value: 'kjvpt', label: 'KJ-PT' }]} />
     </div>
   );
 }
 
 function Credit({ v }: { v: VersionId }) {
+  if (v === 'kjvpt')
+    return (
+      <p className="bible-credit">
+        <strong>King James em português (tradução IRN)</strong>: tradução própria do Ministério Profético Restaurando Nações, feita com ajuda de
+        inteligência artificial a partir da King James Version de 1769 (domínio público). Não é a King James Atualizada (KJA) nem outra
+        tradução publicada. Bíblia completa, de Gênesis a Apocalipse. Encontrou um erro? Avise a liderança.
+      </p>
+    );
   return v === 'livre' ? (
     <p className="bible-credit">
       <strong>Bíblia Livre (BLIVRE)</strong>, Copyright © Diego Santos, Mario Sérgio e Marco Teles,{' '}
