@@ -59,7 +59,7 @@ function VersionSwitch() {
   const [v, setV] = useBibleVersion();
   return (
     <div className="bible-version" title="Trocar a versão da Bíblia">
-      <Seg value={v} onChange={setV} options={[{ value: 'livre', label: 'BLIVRE' }, { value: 'kjv', label: 'KJV' }, { value: 'kjvpt', label: 'KJ-PT' }]} />
+      <Seg value={v} onChange={setV} options={[{ value: 'livre', label: 'BLIVRE' }, { value: 'kjvpt', label: 'KJ-PT' }]} />
     </div>
   );
 }
