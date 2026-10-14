@@ -81,16 +81,28 @@ appRoutes.get('/home', async (c) => {
         .bind(u!.id, u!.id, today, today, today, ...vis),
     );
   }
+  let pendingIdx = -1;
   if (isLeader(u)) {
+    pendingIdx = stmts.length;
     stmts.push(
       db.prepare(
         `SELECT (SELECT COUNT(*) FROM users WHERE status = 'pendente') AS users,
                 (SELECT COUNT(*) FROM testimonies WHERE status = 'pendente') AS testimonies,
                 (SELECT COUNT(*) FROM visitors WHERE status = 'novo') AS visitors,
-                (SELECT COUNT(*) FROM ministry_requests WHERE status = 'novo') AS requests`,
+                (SELECT COUNT(*) FROM ministry_requests WHERE status = 'novo') AS requests,
+                (SELECT COUNT(*) FROM help_posts WHERE status = 'pendente') AS help`,
       ),
     );
   }
+  const pastorIdx = stmts.length;
+  stmts.push(
+    db
+      .prepare(
+        `SELECT id, day, title, reference, verse, author, image_id, audio_id, media_url FROM pastor_messages
+         WHERE visibility IN ${inVis} AND day <= ? ORDER BY day DESC, id DESC LIMIT 1`,
+      )
+      .bind(...vis, today),
+  );
   const res = await db.batch(stmts);
   const rows = (i: number) => (res[i]?.results ?? []) as Record<string, unknown>[];
   const days7 = Array.from({ length: 7 }, (_, i) => addDays(today, i).slice(5));
@@ -109,7 +121,8 @@ appRoutes.get('/home', async (c) => {
     photos: member ? rows(4) : [],
     birthdays,
     campaigns: member ? rows(6) : [],
-    pending: isLeader(u) ? rows(member ? 7 : 4)[0] ?? null : null,
+    pending: pendingIdx >= 0 ? rows(pendingIdx)[0] ?? null : null,
+    pastor: rows(pastorIdx)[0] ?? null,
   });
 });
 
