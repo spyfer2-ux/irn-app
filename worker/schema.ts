@@ -4,6 +4,7 @@
  * Para mudar a estrutura no futuro, acrescente uma NOVA posição no fim da lista MIGRATIONS (nunca edite as antigas).
  */
 import { catalogInserts } from './scenesCatalog';
+import { chosenSeedInserts } from './chosenSeed';
 
 const V1 = [
   `CREATE TABLE IF NOT EXISTS users (
@@ -478,7 +479,22 @@ const V3 = [
 // V4: já vem com as cenas oficiais de The Chosen (vídeos do canal oficial, com a passagem e perguntas).
 const V4 = catalogInserts();
 
-export const MIGRATIONS: string[][] = [V1, V2, V3, V4];
+// V5: "Novidades de The Chosen" — Shorts e vídeos novos do canal oficial, lidos sozinhos do feed do YouTube.
+const V5 = [
+  `CREATE TABLE IF NOT EXISTS chosen_feed (
+    youtube_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'short',
+    ref TEXT,
+    published_at INTEGER NOT NULL,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_chosen_feed ON chosen_feed(kind, hidden, published_at)`,
+  ...chosenSeedInserts(),
+];
+
+export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5];
 
 let ready: Promise<void> | null = null;
 

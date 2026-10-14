@@ -41,7 +41,7 @@ export async function oembed(id: string): Promise<{ title?: string; author_name?
   }
 }
 
-function decodeXml(s: string): string {
+export function decodeXml(s: string): string {
   return s
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
