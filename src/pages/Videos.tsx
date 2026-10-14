@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { EyeOff, Film, Link2, Pencil, Plus, RefreshCw, Search, Share2, Trash2, Upload } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Clapperboard, EyeOff, Film, Link2, Pencil, Plus, RefreshCw, Search, Share2, Trash2, Upload } from 'lucide-react';
 import { useSession } from '../lib/session';
 import { api, useApi } from '../lib/api';
 import type { Video } from '../lib/types';
@@ -82,6 +82,15 @@ export default function Videos() {
           <Search size={18} style={{ position: 'absolute', left: 14, color: 'var(--ink-3)' }} />
           <input className="input" style={{ paddingLeft: 40 }} placeholder="Buscar vídeo ou pregador" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar vídeos" />
         </div>
+        <Link to="/cenas" className="card card-pad scenes-banner">
+          <span className="icon-tile gold">
+            <Clapperboard />
+          </span>
+          <div className="grow">
+            <div style={{ fontWeight: 700 }}>Cenas que pregam</div>
+            <div className="small muted">Trechos de The Chosen com a passagem da Bíblia e perguntas para a célula.</div>
+          </div>
+        </Link>
         <Chips
           value={fonte}
           onChange={setFonte}

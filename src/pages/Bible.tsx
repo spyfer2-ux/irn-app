@@ -34,6 +34,7 @@ import { Button, Chips, Empty, ErrorBox, Page, Seg, Sheet, Skeleton, toast } fro
 import './Bible.css';
 import { ArtShortcut, ChapterArt } from './BibleArt';
 import { KjaLink } from './BibleKja';
+import { ChapterScenes } from '../components/Passage';
 import { colorCss, MarkSheet, VerseArtSheet } from './BibleMarks';
 import { getMark, useMarksVersion } from '../lib/marks';
 
@@ -617,6 +618,7 @@ function Reader({ book, chapter, focus }: { book: Book; chapter: number; focus: 
 
           {verses && <p className="tiny muted center">Toque nos versículos para marcar, anotar, copiar ou fazer uma imagem.</p>}
 
+          {verses && <ChapterScenes book={book} chapter={chapter} />}
           {verses && <KjaLink book={book} chapter={chapter} verse={selected.length ? Math.min(...selected) : focus[0]} />}
           <div className="row bible-nav">
             {prev ? (
