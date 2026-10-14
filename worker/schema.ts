@@ -449,7 +449,32 @@ const V2 = [
   `CREATE INDEX IF NOT EXISTS idx_help_user ON help_posts(user_id)`,
 ];
 
-export const MIGRATIONS: string[][] = [V1, V2];
+// V3: "Cenas que pregam" — trechos dos vídeos oficiais da série The Chosen (pelo player do YouTube,
+// sem baixar nem recortar nada) ligados a uma passagem da Bíblia, com texto do pastor e perguntas.
+const V3 = [
+  `CREATE TABLE IF NOT EXISTS scenes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    youtube_id TEXT NOT NULL,
+    start_s INTEGER NOT NULL DEFAULT 0,
+    end_s INTEGER,
+    title TEXT NOT NULL,
+    episode TEXT,
+    channel TEXT,
+    bible_book INTEGER NOT NULL,
+    bible_chapter INTEGER NOT NULL,
+    bible_verse INTEGER,
+    bible_verse_end INTEGER,
+    pastor_text TEXT,
+    questions TEXT NOT NULL DEFAULT '[]',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    created_by INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_scenes_bible ON scenes(bible_book, bible_chapter)`,
+];
+
+export const MIGRATIONS: string[][] = [V1, V2, V3];
 
 let ready: Promise<void> | null = null;
 
