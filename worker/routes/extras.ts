@@ -332,7 +332,7 @@ extrasRoutes.delete('/pregacoes/:id{[0-9]+}', async (c) => {
 // =============== MURAL DE AJUDA MÚTUA ===============
 
 const HELP_KINDS = ['preciso', 'ofereco'] as const;
-const HELP_CATEGORIES = ['emprego', 'servicos', 'doacao', 'carona', 'moradia', 'estudos', 'saude', 'outros'] as const;
+const HELP_CATEGORIES = ['alimentos', 'emprego', 'servicos', 'doacao', 'carona', 'moradia', 'estudos', 'saude', 'outros'] as const;
 const HELP_SELECT = `SELECT h.*, u.name AS author_name, u.picture AS author_picture FROM help_posts h LEFT JOIN users u ON u.id = h.user_id`;
 
 extrasRoutes.get('/ajuda', async (c) => {
@@ -361,8 +361,15 @@ extrasRoutes.get('/ajuda', async (c) => {
   }
   const { results } = await c.env.DB.prepare(`${HELP_SELECT} WHERE ${conds.join(' AND ')} ORDER BY h.id DESC LIMIT 60`)
     .bind(...binds)
-    .all();
-  return c.json({ posts: results });
+    .all<Record<string, unknown> & { user_id: number }>();
+  // O mural é anônimo: só a liderança (e a própria pessoa) vê quem publicou e o contato.
+  const leader = isLeader(u);
+  const posts = results.map((p) => {
+    const mine = p.user_id === u.id;
+    if (leader || mine) return { ...p, mine };
+    return { ...p, mine, user_id: null, author_name: null, author_picture: null, contact: null };
+  });
+  return c.json({ posts, anonymous: !leader });
 });
 
 function readHelp(b: Record<string, unknown>) {
@@ -431,6 +438,50 @@ extrasRoutes.post('/ajuda/:id{[0-9]+}/resolvido', async (c) => {
     .bind(done ? 'resolvido' : 'aprovado', done ? now() : null, now(), id)
     .run();
   return c.json({ ok: true, status: done ? 'resolvido' : 'aprovado' });
+});
+
+/** Alguém quer ajudar (ou aceitar uma oferta): a liderança é avisada com o nome e faz a ponte, sem expor quem pediu. */
+extrasRoutes.post('/ajuda/:id{[0-9]+}/interesse', async (c) => {
+  const u = needMember(c);
+  const id = Number(c.req.param('id'));
+  const p = await c.env.DB.prepare("SELECT user_id, kind, title FROM help_posts WHERE id = ? AND status = 'aprovado'")
+    .bind(id)
+    .first<{ user_id: number; kind: string; title: string }>();
+  if (!p) fail(404, 'Publicação não encontrada.');
+  if (p.user_id === u.id) fail(400, 'Esta publicação é sua.');
+  try {
+    await rateLimit(c.env, `help-int:${u.id}:${id}`, 1, 24 * 3600_000);
+  } catch {
+    fail(400, 'Você já avisou a liderança sobre esta publicação. Eles vão entrar em contato.');
+  }
+  const msg = str((await c.req.json().catch(() => ({})) as Record<string, unknown>).message, 300, { label: 'mensagem' });
+  const verb = p.kind === 'preciso' ? 'quer ajudar' : 'tem interesse na oferta';
+  await c.env.DB.batch([auditLog(c, u.id, 'ajuda.interesse', `#${id} ${p.title}${msg ? ` — ${msg}` : ''}`)]);
+  await notifyNow(c.env, originOf(c), wait(c), {
+    topic: 'admin',
+    audience: 'leaders',
+    title: `Mural de ajuda: ${u.name} ${verb}`,
+    body: `${p.title}${msg ? ` — "${msg}"` : ''}${u.phone ? ` · Tel.: ${u.phone}` : ''}`.slice(0, 250),
+    url: `/ajuda?filtro=interesses`,
+  });
+  await notifyNow(c.env, originOf(c), wait(c), {
+    topic: 'pessoal',
+    audience: `user:${p.user_id}`,
+    title: p.kind === 'preciso' ? 'Alguém da igreja quer te ajudar' : 'Alguém se interessou pela sua oferta',
+    body: `A liderança vai entrar em contato com você. (${p.title})`.slice(0, 200),
+    url: '/ajuda?filtro=meus',
+  });
+  return c.json({ ok: true });
+});
+
+/** Lista para a liderança: quem se ofereceu para ajudar em cada publicação. */
+extrasRoutes.get('/ajuda/interesses', async (c) => {
+  needLeader(c);
+  const { results } = await c.env.DB.prepare(
+    `SELECT a.id, a.detail, a.created_at, u.name, u.phone, u.picture FROM audit a LEFT JOIN users u ON u.id = a.user_id
+     WHERE a.action = 'ajuda.interesse' ORDER BY a.id DESC LIMIT 60`,
+  ).all();
+  return c.json({ items: results });
 });
 
 extrasRoutes.post('/ajuda/:id{[0-9]+}/moderar', async (c) => {

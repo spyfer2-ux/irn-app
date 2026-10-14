@@ -9,7 +9,7 @@ import {
   Gift,
   HandCoins,
   HandHeart,
-  Headphones,
+  HandHelping,
   Images,
   MapPin,
   Mic,
@@ -64,7 +64,7 @@ export default function Home() {
         { to: '/oracao', label: 'Pedir oração', icon: <HandHeart />, tone: 'gold' },
         { to: '/dizimos', label: 'Dízimos e ofertas', icon: <HandCoins />, tone: 'gold' },
         { to: '/agenda', label: 'Agenda', icon: <CalendarDays />, tone: '' },
-        { to: '/pregacoes', label: 'Pregações', icon: <Headphones />, tone: '' },
+        { to: '/ajuda', label: 'Ajuda mútua', icon: <HandHelping />, tone: '' },
         { to: '/mensagem', label: 'Mensagem do Pastor', icon: <Mic />, tone: 'gold' },
       ]
     : [
@@ -74,7 +74,7 @@ export default function Home() {
         { to: '/visitante', label: 'Sou visitante', icon: <UserPlus />, tone: 'gold' },
         { to: '/dizimos', label: 'Dízimos e ofertas', icon: <HandCoins />, tone: 'gold' },
         { to: '/agenda', label: 'Agenda', icon: <CalendarDays />, tone: '' },
-        { to: '/pregacoes', label: 'Pregações', icon: <Headphones />, tone: '' },
+        { to: '/ajuda', label: 'Ajuda mútua', icon: <HandHelping />, tone: '' },
         { to: '/mensagem', label: 'Mensagem do Pastor', icon: <Mic />, tone: 'gold' },
       ];
 

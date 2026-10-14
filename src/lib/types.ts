@@ -204,7 +204,8 @@ export interface Sermon {
 export type HelpKind = 'preciso' | 'ofereco';
 export interface HelpPost {
   id: number;
-  user_id: number;
+  user_id: number | null;
+  mine: boolean;
   kind: HelpKind;
   category: string;
   title: string;

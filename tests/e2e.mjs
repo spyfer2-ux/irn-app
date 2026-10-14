@@ -491,7 +491,31 @@ await check('membro: publica no mural de ajuda e a liderança aprova', async () 
   await a.goto(BASE + '/ajuda');
   const card = a.locator('.help-card', { hasText: 'Sou eletricista' });
   await card.getByRole('link', { name: /WhatsApp/ }).waitFor();
-  await shot(a, '29-ajuda-mutua.png');
+  await card.getByText('(só a liderança vê)').waitFor();
+});
+await check('outro membro: mural anônimo e "Tenho interesse" avisa a liderança', async () => {
+  const j = await newPhone('irmao');
+  await devLogin(j, 'joao@irn.test', 'João Pereira', 'membro');
+  await j.goto(BASE + '/');
+  const quick = await j.locator('nav.quick').innerText();
+  if (!/Ajuda mútua/.test(quick) || /Pregações/.test(quick)) throw new Error('atalhos: ' + quick.replace(/\n/g, ' | '));
+  await j.goto(BASE + '/ajuda');
+  await j.getByText('O mural é anônimo').waitFor();
+  const card = j.locator('.help-card', { hasText: 'Sou eletricista' });
+  await card.getByText('Anônimo').waitFor();
+  if (await card.getByText('Maria').count()) throw new Error('nome de quem publicou aparece para outro membro');
+  if (await card.getByRole('link', { name: /WhatsApp/ }).count()) throw new Error('contato aparece para outro membro');
+  const api = await j.evaluate(() => fetch('/api/ajuda').then((r) => r.json()));
+  if (api.posts.some((p) => p.author_name || p.contact || p.user_id)) throw new Error('API vaza autor/contato: ' + JSON.stringify(api.posts[0]));
+  await card.getByRole('button', { name: 'Tenho interesse' }).click();
+  await dialog(j).getByLabel('Recado (opcional)').fill('Preciso trocar a fiação da cozinha');
+  await dialog(j).getByRole('button', { name: 'Avisar a liderança' }).click();
+  await toast(j, 'A liderança vai entrar em contato');
+  await shot(j, '29-ajuda-mutua.png');
+  await a.goto(BASE + '/ajuda?filtro=interesses');
+  await a.getByText('João Pereira').waitFor();
+  await a.getByText(/fiação da cozinha/).waitFor();
+  await shot(a, '29b-ajuda-interesses.png');
 });
 await check('membro: marca versículo, anota e vê em Meus versículos', async () => {
   await m.goto(BASE + '/biblia/joao/3?v=16');
