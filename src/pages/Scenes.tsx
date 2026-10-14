@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Clapperboard, Info, MessageCircleQuestion, Pencil, Plus, RotateCcw, Search, Share2, Trash2 } from 'lucide-react';
+import { Clapperboard, Info, MessageCircleQuestion, Pencil, Plus, RotateCcw, Share2, Trash2 } from 'lucide-react';
 import { useSession } from '../lib/session';
 import { api, useApi } from '../lib/api';
 import type { Scene } from '../lib/types';
@@ -32,6 +32,7 @@ const embedUrl = (s: Pick<Scene, 'youtube_id' | 'start_s' | 'end_s'>) =>
   `https://www.youtube.com/embed/${s.youtube_id}?playsinline=1&rel=0&start=${s.start_s}${s.end_s ? `&end=${s.end_s}` : ''}`;
 
 function trechoLabel(s: Pick<Scene, 'start_s' | 'end_s'>) {
+  if (!s.end_s && !s.start_s) return 'Vídeo completo da cena';
   return s.end_s ? `Trecho de ${clock(s.start_s)} a ${clock(s.end_s)} (${clock(s.end_s - s.start_s)})` : `A partir de ${clock(s.start_s)}`;
 }
 
@@ -39,15 +40,9 @@ function trechoLabel(s: Pick<Scene, 'start_s' | 'end_s'>) {
 
 export default function Scenes() {
   const { isMedia } = useSession();
-  const [q, setQ] = useState('');
-  const [query, setQuery] = useState('');
   const [book, setBook] = useState('');
   const [adding, setAdding] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setQuery(q.trim()), 350);
-    return () => clearTimeout(t);
-  }, [q]);
-  const { data, error, loading, reload } = useApi<{ scenes: Scene[] }>(`/cenas${query ? `?q=${encodeURIComponent(query)}` : ''}`);
+  const { data, error, loading, reload } = useApi<{ scenes: Scene[] }>('/cenas');
   const all = data?.scenes ?? [];
   const books = useMemo(() => [...new Set(all.map((s) => s.bible_book))].sort((a, b) => a - b), [all]);
   const list = book ? all.filter((s) => String(s.bible_book) === book) : all;
@@ -68,10 +63,6 @@ export default function Scenes() {
         <p className="muted" style={{ margin: 0 }}>
           Trechos da série <em>The Chosen</em> com a passagem da Bíblia, uma palavra do pastor e perguntas para conversar na célula e em família.
         </p>
-        <div className="search-box" role="search">
-          <Search className="ico" aria-hidden />
-          <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar cena ou tema" aria-label="Buscar cenas" />
-        </div>
         {books.length > 1 && (
           <Chips value={book} onChange={setBook} options={[{ value: '', label: 'Todos os livros' }, ...books.map((n) => ({ value: String(n), label: bookByN(n).pt }))]} />
         )}
@@ -87,8 +78,8 @@ export default function Scenes() {
         ) : (
           <Empty
             icon={<Clapperboard />}
-            title={query ? 'Nada encontrado' : 'Nenhuma cena ainda'}
-            text={query ? 'Tente outra palavra.' : isMedia ? 'Adicione a primeira: cole o link do vídeo oficial da série e marque o início e o fim da cena.' : 'Volte em breve!'}
+            title="Nenhuma cena ainda"
+            text={isMedia ? 'Adicione a primeira: cole o link do vídeo oficial da série e marque o início e o fim da cena.' : 'Volte em breve!'}
           />
         )}
         <p className="tiny muted center">
@@ -156,7 +147,7 @@ export function SceneDetail() {
               {s.channel ? ` · Canal: ${s.channel}` : ''}
             </span>
             <button className="link-btn small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => setReplay((n) => n + 1)}>
-              <RotateCcw size={14} /> Ver o trecho de novo
+              <RotateCcw size={14} /> Ver de novo
             </button>
           </div>
           <div>
