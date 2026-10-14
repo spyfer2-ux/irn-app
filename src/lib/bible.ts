@@ -378,7 +378,7 @@ function lsSet(k: string, v: string) {
 
 export const getVersion = (): VersionId => {
   const s = lsGet(LS.version);
-  return s === 'kjv' || s === 'kjvpt' ? s : 'livre';
+  return s === 'kjvpt' ? s : 'livre'; // a KJV (inglês) saiu do seletor: quem usava volta para a BLIVRE
 };
 export const saveVersion = (v: VersionId) => lsSet(LS.version, v);
 
