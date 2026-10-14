@@ -419,6 +419,115 @@ await check('membro: perfil e notificações', async () => {
   await shot(m, '23-perfil.png');
 });
 
+// ======================= MENSAGEM DO PASTOR, PREGAÇÕES, AJUDA MÚTUA E BÍBLIA =======================
+await check('admin: publica a Mensagem do Pastor', async () => {
+  await a.goto(BASE + '/mensagem');
+  await a.getByRole('button', { name: 'Nova' }).click();
+  const d = dialog(a);
+  await d.getByLabel('Título').fill('Não temas, eu estou contigo');
+  await d.getByLabel('Referência bíblica').fill('Isaías 41.10');
+  await d.getByLabel('Versículo (texto)').fill('Não temas, porque eu sou contigo; não te assombres, porque eu sou teu Deus.');
+  await d.getByLabel('Mensagem').fill('Bom dia, igreja! Hoje o Senhor te lembra: você não está sozinho.');
+  await d.getByLabel(/Link do áudio ou vídeo/).fill('https://youtu.be/dQw4w9WgXcQ');
+  await d.getByRole('switch', { name: /Avisar agora/ }).check();
+  await d.getByRole('button', { name: 'Salvar' }).click();
+  await toast(a, 'Mensagem salva.');
+  await a.getByText('Não temas, eu estou contigo').first().click();
+  await a.locator('.player iframe').waitFor();
+  await shot(a, '26-mensagem-pastor.png');
+});
+await check('visitante: início com Mensagem do Pastor e atalhos novos', async () => {
+  await v.goto(BASE + '/');
+  await v.locator('.pastor-card', { hasText: 'Não temas, eu estou contigo' }).waitFor();
+  const quick = await v.locator('nav.quick').innerText();
+  if (!/Mensagem do Pastor/.test(quick)) throw new Error('atalho Mensagem do Pastor faltando');
+  if (/Células e grupos/.test(quick)) throw new Error('atalho Células e grupos ainda na tela inicial');
+  if (/^Palavra$/m.test(quick)) throw new Error('atalho Palavra ainda na tela inicial');
+  await shot(v, '27-inicio-mensagem.png');
+  await v.goto(BASE + '/mais');
+  await v.getByText('Células e grupos').waitFor();
+  await v.getByText('Palavra do dia').waitFor();
+});
+await check('admin: publica pregação pelo link do YouTube', async () => {
+  await a.goto(BASE + '/pregacoes');
+  await a.getByRole('button', { name: 'Pregação' }).click();
+  const d = dialog(a);
+  await d.getByLabel('Título').fill('O poder da fé');
+  await d.getByLabel('Texto bíblico').fill('Hebreus 11.1-6');
+  await d.getByLabel(/Link do vídeo no YouTube/).fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  await d.getByRole('button', { name: 'Salvar' }).click();
+  await a.waitForURL(/\/pregacoes\/\d+$/);
+  await a.locator('.player iframe').waitFor();
+});
+await check('visitante: lista e busca pregações', async () => {
+  await v.goto(BASE + '/pregacoes');
+  await v.getByText('O poder da fé').waitFor();
+  await v.getByLabel('Buscar pregações').fill('Hebreus');
+  await v.getByText('O poder da fé').waitFor();
+  await v.getByLabel('Buscar pregações').fill('zzzz');
+  await v.getByText('Nada encontrado').waitFor();
+  await shot(v, '28-pregacoes.png');
+});
+await check('visitante: mural de ajuda é só para membros', async () => {
+  await v.goto(BASE + '/ajuda');
+  await v.getByText('Área dos membros').waitFor();
+});
+await check('membro: publica no mural de ajuda e a liderança aprova', async () => {
+  await m.goto(BASE + '/ajuda');
+  await m.getByRole('button', { name: 'Publicar no mural' }).click();
+  const d = dialog(m);
+  await d.getByRole('tab', { name: 'Quero ajudar' }).click();
+  await d.getByRole('button', { name: 'Serviços' }).click();
+  await d.getByLabel('Título').fill('Sou eletricista, posso ajudar irmãos');
+  await d.getByLabel('Contato').fill('(11) 98765-4321');
+  await d.getByRole('button', { name: 'Enviar para aprovação' }).click();
+  await toast(m, 'A liderança vai aprovar');
+  await m.getByText('Aguardando aprovação').waitFor();
+  await a.goto(BASE + '/');
+  await a.getByText(/no mural de ajuda/).waitFor();
+  await a.goto(BASE + '/ajuda?filtro=pendentes');
+  await a.locator('.help-card', { hasText: 'Sou eletricista' }).getByRole('button', { name: 'Aprovar', exact: true }).click();
+  await toast(a, 'Aprovado');
+  await a.goto(BASE + '/ajuda');
+  const card = a.locator('.help-card', { hasText: 'Sou eletricista' });
+  await card.getByRole('link', { name: /WhatsApp/ }).waitFor();
+  await shot(a, '29-ajuda-mutua.png');
+});
+await check('membro: marca versículo, anota e vê em Meus versículos', async () => {
+  await m.goto(BASE + '/biblia/joao/3?v=16');
+  await m.locator('#v16').click();
+  await m.getByRole('button', { name: 'Marcar e anotar' }).click();
+  const d = dialog(m);
+  await d.getByRole('radio', { name: 'Amarelo' }).click();
+  await d.getByLabel('Minha anotação').fill('Versículo da minha conversão');
+  await d.getByRole('button', { name: 'Salvar' }).click();
+  await toast(m, 'Salvo em Meus versículos.');
+  await m.locator('#v16.hl').waitFor();
+  await m.locator('#v16 .note-dot').waitFor();
+  await m.goto(BASE + '/biblia/marcados');
+  await m.getByText('Versículo da minha conversão').waitFor();
+  await m.getByText(/Porque Deus amou o mundo|Deus amou/).first().waitFor();
+  await shot(m, '30-meus-versiculos.png');
+});
+await check('membro: versículo em imagem com a logo', async () => {
+  await m.goto(BASE + '/biblia/salmos/23?v=1');
+  await m.locator('#v1').click();
+  await m.getByRole('button', { name: 'Versículo em imagem' }).click();
+  const img = dialog(m).locator('.art-preview img');
+  await img.waitFor();
+  await m.waitForFunction(() => {
+    const el = document.querySelector('.art-preview img');
+    return el && el.naturalWidth === 1080 && el.naturalHeight === 1350;
+  });
+  await dialog(m).getByRole('tab', { name: 'Status / Stories' }).click();
+  await m.waitForFunction(() => document.querySelector('.art-preview img')?.naturalHeight === 1920);
+  await shot(m, '31-versiculo-imagem.png');
+  const download = m.waitForEvent('download');
+  await dialog(m).getByRole('button', { name: 'Baixar' }).click();
+  const file = await download;
+  if (!/\.png$/.test(file.suggestedFilename())) throw new Error(file.suggestedFilename());
+});
+
 // ======================= MODO ESCURO E COMPUTADOR =======================
 const dark = await newPhone('escuro', { colorScheme: 'dark' });
 await check('modo escuro: início', async () => {
