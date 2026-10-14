@@ -10,7 +10,7 @@ export const VERSIONS: Record<VersionId, { id: VersionId; short: string; name: s
 export const VERSION_IDS = Object.keys(VERSIONS) as VersionId[];
 
 /** Livros já traduzidos na King James em português (tradução IRN): números de 1 (Gênesis) a 66 (Apocalipse). */
-export const KJVPT_BOOKS = new Set<number>([1, 2, 3, 4, 5, ...Array.from({ length: 27 }, (_, i) => 40 + i)]);
+export const KJVPT_BOOKS = new Set<number>(Array.from({ length: 66 }, (_, i) => i + 1)); // Bíblia completa
 export const hasBook = (v: VersionId, n: number) => v !== 'kjvpt' || KJVPT_BOOKS.has(n);
 export const MISSING_BOOK = 'Este livro ainda está sendo traduzido para a King James em português. Por enquanto, leia na Bíblia Livre (BLIVRE).';
 
