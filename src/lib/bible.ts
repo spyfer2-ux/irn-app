@@ -1,12 +1,17 @@
 /** Bíblia: livros, versões, leitura dos arquivos, busca por palavra/frase e por referência ("jo 3:16"). */
 
-export type VersionId = 'livre' | 'kjv';
+export type VersionId = 'livre' | 'kjv' | 'kjvpt';
 
 export const VERSIONS: Record<VersionId, { id: VersionId; short: string; name: string; lang: string }> = {
   livre: { id: 'livre', short: 'BLIVRE', name: 'Bíblia Livre', lang: 'pt-BR' },
   kjv: { id: 'kjv', short: 'KJV', name: 'King James 1769', lang: 'en' },
+  kjvpt: { id: 'kjvpt', short: 'KJ-PT', name: 'King James em português (tradução IRN)', lang: 'pt-BR' },
 };
 export const VERSION_IDS = Object.keys(VERSIONS) as VersionId[];
+
+/** Livros já traduzidos na King James em português (tradução IRN). Por enquanto, o Novo Testamento. */
+export const hasBook = (v: VersionId, n: number) => v !== 'kjvpt' || n >= 40;
+export const MISSING_BOOK = 'Este livro ainda está sendo traduzido para a King James em português. Por enquanto, leia na Bíblia Livre (BLIVRE).';
 
 export interface Book {
   n: number; // 1 a 66
@@ -232,6 +237,7 @@ export function loadBook(v: VersionId, n: number): Promise<BookData> {
     p = (async () => {
       let res: Response;
       try {
+        if (!hasBook(v, n)) throw new Error(MISSING_BOOK);
         res = await fetch(`/biblia/${k}.json`);
       } catch {
         throw new Error('Sem internet: este livro ainda não foi aberto neste aparelho.');
@@ -309,7 +315,7 @@ export async function searchBible(
   if (!re) return { hits: [], loose: false, missing: 0 };
   const words = queryWords(q);
   const each = words.length > 1 ? words.map((w) => matcher(w)!) : [];
-  const books = BOOKS.filter((b) => scope === 'todos' || (scope === 'nt') === b.nt);
+  const books = BOOKS.filter((b) => (scope === 'todos' || (scope === 'nt') === b.nt) && hasBook(v, b.n));
   const exact: Hit[][] = [];
   const loose: Hit[][] = [];
   let done = 0;
@@ -369,7 +375,10 @@ function lsSet(k: string, v: string) {
   }
 }
 
-export const getVersion = (): VersionId => (lsGet(LS.version) === 'kjv' ? 'kjv' : 'livre');
+export const getVersion = (): VersionId => {
+  const s = lsGet(LS.version);
+  return s === 'kjv' || s === 'kjvpt' ? s : 'livre';
+};
 export const saveVersion = (v: VersionId) => lsSet(LS.version, v);
 
 export const FONT_MIN = 14;
