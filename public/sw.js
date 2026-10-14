@@ -78,7 +78,8 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         try {
-          const res = await fetch(req);
+          // Sempre pergunta ao servidor (sem usar o cache do navegador), para a tela nova chegar logo depois de cada atualização.
+          const res = await fetch(req.url, { cache: 'no-cache', credentials: 'include' });
           if (res.ok) (await caches.open(SHELL)).put('/', res.clone());
           return res;
         } catch {

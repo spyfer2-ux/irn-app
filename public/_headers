@@ -11,5 +11,11 @@
 /sw.js
   Cache-Control: no-cache
 
-/biblia/*
+/biblia/livre/*
+  Cache-Control: public, max-age=604800
+
+/biblia/kjv/*
+  Cache-Control: public, max-age=604800
+
+/biblia/kjvpt/*
   Cache-Control: public, max-age=604800
