@@ -388,7 +388,68 @@ const V1 = [
    WHERE (SELECT COUNT(*) FROM ministries) = 3`,
 ];
 
-export const MIGRATIONS: string[][] = [V1];
+// V2: Mensagem do Pastor, pregações em áudio e mural de ajuda mútua.
+const V2 = [
+  `CREATE TABLE IF NOT EXISTS pastor_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day TEXT NOT NULL,
+    title TEXT NOT NULL,
+    reference TEXT,
+    verse TEXT,
+    body TEXT,
+    author TEXT,
+    image_id TEXT,
+    audio_id TEXT,
+    media_url TEXT,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    notified INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_pastor_day ON pastor_messages(day DESC)`,
+
+  `CREATE TABLE IF NOT EXISTS sermons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    preacher TEXT,
+    reference TEXT,
+    description TEXT,
+    preached_on TEXT NOT NULL,
+    audio_id TEXT,
+    audio_url TEXT,
+    youtube_id TEXT,
+    cover_id TEXT,
+    duration REAL,
+    visibility TEXT NOT NULL DEFAULT 'public',
+    plays INTEGER NOT NULL DEFAULT 0,
+    created_by INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sermons_day ON sermons(preached_on DESC)`,
+
+  `CREATE TABLE IF NOT EXISTS help_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    category TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    contact TEXT,
+    status TEXT NOT NULL DEFAULT 'pendente',
+    review_note TEXT,
+    reviewed_by INTEGER,
+    reviewed_at INTEGER,
+    resolved_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_help_status ON help_posts(status, id DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_help_user ON help_posts(user_id)`,
+];
+
+export const MIGRATIONS: string[][] = [V1, V2];
 
 let ready: Promise<void> | null = null;
 

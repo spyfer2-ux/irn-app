@@ -409,6 +409,7 @@ export async function deleteUserCascade(env: Env, userId: number, name: string) 
     'DELETE FROM campaign_members WHERE user_id = ?',
     'DELETE FROM campaign_checkins WHERE user_id = ?',
     'DELETE FROM ministry_requests WHERE user_id = ?',
+    'DELETE FROM help_posts WHERE user_id = ?',
     'UPDATE photos SET uploaded_by = NULL WHERE uploaded_by = ?',
   ].map((sql) => env.DB.prepare(sql).bind(userId));
   stmts.push(

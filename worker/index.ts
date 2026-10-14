@@ -17,6 +17,7 @@ import { careRoutes } from './routes/care';
 import { givingRoutes } from './routes/giving';
 import { adminRoutes } from './routes/admin';
 import { appRoutes } from './routes/app';
+import { extrasRoutes } from './routes/extras';
 import { runCron } from './cron';
 
 const app = new Hono<AppEnv>();
@@ -67,6 +68,7 @@ app.route('/api', careRoutes);
 app.route('/api', givingRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api', appRoutes);
+app.route('/api', extrasRoutes);
 
 app.all('/api/*', (c) => c.json({ error: 'Não encontrado.' }, 404));
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
