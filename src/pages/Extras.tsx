@@ -50,6 +50,7 @@ import {
   useAction,
 } from '../components/ui';
 import './Extras.css';
+import { VoiceNote, VoiceRecorder } from '../components/Voice';
 
 // ======================= MÍDIA (áudio / YouTube) =======================
 
@@ -429,7 +430,11 @@ export function PastorDetail() {
             {longDate(m.day)}
           </div>
           <h1 style={{ fontSize: 28, fontWeight: 560 }}>{m.title}</h1>
-          <MediaBlock audioId={m.audio_id} url={m.media_url} title={m.title} storageKey={`msg-${m.id}`} />
+          {m.audio_id ? (
+            <VoiceNote src={mediaUrl(m.audio_id)} duration={m.audio_duration} label={m.author || church.pastor_display} />
+          ) : (
+            <MediaBlock audioId={null} url={m.media_url} title={m.title} storageKey={`msg-${m.id}`} />
+          )}
           {m.verse && <blockquote className="verse" style={{ margin: 0 }}>{m.verse}</blockquote>}
           {m.reference && <div style={{ fontWeight: 650, color: 'var(--gold)' }}>{m.reference}</div>}
           {m.body && (
@@ -457,7 +462,11 @@ function PastorSheet({ message, onClose, onDone, onDeleted }: { message?: Pastor
   const [body, setBody] = useState(message?.body ?? '');
   const [author, setAuthor] = useState(message?.author ?? church.pastor_display);
   const [image, setImage] = useState<string | null>(message?.image_id ?? null);
-  const [audio, setAudio] = useState<string | null>(message?.audio_id ?? null);
+  const [voice, setVoice] = useState<{ id: string | null; url: string | null; duration: number | null }>({
+    id: message?.audio_id ?? null,
+    url: null,
+    duration: message?.audio_duration ?? null,
+  });
   const [link, setLink] = useState(message?.media_url ?? '');
   const [isPublic, setIsPublic] = useState(message ? message.visibility === 'public' : true);
   const [notify, setNotify] = useState(false);
@@ -502,8 +511,8 @@ function PastorSheet({ message, onClose, onDone, onDeleted }: { message?: Pastor
                   body,
                   author,
                   image_id: image,
-                  audio_id: audio,
-                  media_url: audio ? null : link,
+                  audio_id: voice.id,
+                  media_url: link,
                   visibility: isPublic ? 'public' : 'members',
                   notify: !message && isToday && notify,
                 };
@@ -526,7 +535,20 @@ function PastorSheet({ message, onClose, onDone, onDeleted }: { message?: Pastor
         <TextField label="Referência bíblica" value={reference} onChange={setReference} maxLength={80} placeholder="Ex.: Isaías 41.10" />
         <TextField label="Versículo (texto)" value={verse} onChange={setVerse} multiline rows={3} maxLength={1200} />
         <TextField label="Mensagem" value={body} onChange={setBody} multiline rows={7} maxLength={12000} />
-        <AudioInput audioId={audio} setAudioId={setAudio} link={link} setLink={setLink} access={isPublic ? 'public' : 'members'} linkLabel="Link do áudio ou vídeo (opcional)" />
+        <div>
+          <div className="small" style={{ fontWeight: 620, marginBottom: 6 }}>
+            Áudio do pastor (opcional)
+          </div>
+          <VoiceRecorder audioId={voice.id} audioUrl={voice.url} duration={voice.duration} onChange={setVoice} access={isPublic ? 'public' : 'members'} />
+        </div>
+        <TextField
+          label="Vídeo do YouTube (opcional)"
+          value={link}
+          onChange={setLink}
+          inputMode="url"
+          placeholder="https://youtu.be/…"
+          hint="Se a mensagem também tiver vídeo no YouTube, cole o link aqui."
+        />
         <TextField label="Assinatura" value={author} onChange={setAuthor} maxLength={80} />
         <CoverPicker value={image} onChange={setImage} access={isPublic ? 'public' : 'members'} />
         <Toggle label="Pública" hint={isPublic ? 'Visitantes também veem.' : 'Só membros veem.'} checked={isPublic} onChange={setIsPublic} />
