@@ -14,7 +14,7 @@ import {
   Church as ChurchIcon,
   ClipboardList,
   Clock,
-  Film,
+  Clapperboard, Film,
   HandCoins,
   HandHeart,
   HandHelping,
@@ -681,6 +681,7 @@ export function More() {
   const church: Item[] = [
     { to: '/ao-vivo', label: 'Ao vivo', icon: <Radio />, tone: 'live' },
     { to: '/videos', label: 'Vídeos', icon: <Film /> },
+    { to: '/cenas', label: 'Cenas que pregam', icon: <Clapperboard />, tone: 'gold' },
     { to: '/fotos', label: 'Fotos', icon: <Images /> },
     { to: '/agenda', label: 'Agenda', icon: <CalendarDays /> },
     { to: '/avisos', label: 'Avisos', icon: <Megaphone /> },

@@ -332,3 +332,23 @@ export interface HomeData {
   pending: { users: number; testimonies: number; visitors: number; requests: number; help?: number } | null;
   pastor?: PastorMessage | null;
 }
+
+/** "Cenas que pregam": trecho de vídeo oficial da série The Chosen (pelo player do YouTube) ligado a uma passagem. */
+export interface Scene {
+  id: number;
+  youtube_id: string;
+  start_s: number;
+  end_s: number | null;
+  title: string;
+  episode: string | null;
+  channel: string | null;
+  bible_book: number;
+  bible_chapter: number;
+  bible_verse: number | null;
+  bible_verse_end: number | null;
+  pastor_text: string | null;
+  questions: string[];
+  visibility: Visibility;
+  created_at: number;
+  updated_at: number;
+}
