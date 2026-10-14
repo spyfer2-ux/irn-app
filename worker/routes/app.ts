@@ -98,8 +98,9 @@ appRoutes.get('/home', async (c) => {
   stmts.push(
     db
       .prepare(
-        `SELECT id, day, title, reference, verse, author, image_id, audio_id, media_url FROM pastor_messages
-         WHERE visibility IN ${inVis} AND day <= ? ORDER BY day DESC, id DESC LIMIT 1`,
+        `SELECT p.id, p.day, p.title, p.reference, p.verse, p.author, p.image_id, p.audio_id, p.media_url, m.duration AS audio_duration
+         FROM pastor_messages p LEFT JOIN media m ON m.id = p.audio_id
+         WHERE p.visibility IN ${inVis} AND p.day <= ? ORDER BY p.day DESC, p.id DESC LIMIT 1`,
       )
       .bind(...vis, today),
   );

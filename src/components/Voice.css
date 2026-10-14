@@ -1,0 +1,153 @@
+/* Áudio estilo WhatsApp */
+
+.voice-rec {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 14px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  min-height: 64px;
+}
+.voice-rec.recording {
+  background: color-mix(in srgb, #e5484d 8%, var(--surface));
+  border-color: color-mix(in srgb, #e5484d 35%, var(--line));
+}
+
+.voice-main-btn {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #1fa855;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(31, 168, 85, 0.35);
+  transition: transform 0.12s;
+}
+.voice-main-btn:active {
+  transform: scale(0.93);
+}
+.voice-main-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.voice-icon-btn {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.voice-icon-btn:hover {
+  background: var(--surface-3);
+}
+
+.voice-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  background: #e5484d;
+  animation: voice-blink 1s infinite;
+  flex: none;
+}
+@keyframes voice-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.voice-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  min-width: 42px;
+}
+.voice-levels {
+  flex: 1;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+}
+.voice-levels span {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 2px;
+  background: #e5484d;
+  opacity: 0.75;
+  transition: height 0.08s;
+}
+
+.voice-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 10px;
+  border-radius: 18px;
+  background: color-mix(in srgb, #1fa855 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, #1fa855 25%, var(--line));
+  max-width: 520px;
+}
+.voice-bar {
+  position: relative;
+  height: 6px;
+  margin: 10px 0 8px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.voice-bar::before {
+  content: '';
+  position: absolute;
+  inset: -12px 0;
+}
+.voice-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 99px;
+  background: #1fa855;
+}
+.voice-bar i {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 99px;
+  background: #1fa855;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.voice-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.voice-speed {
+  flex: none;
+  min-width: 46px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 99px;
+  border: 0;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}

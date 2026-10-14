@@ -428,7 +428,7 @@ await check('admin: publica a Mensagem do Pastor', async () => {
   await d.getByLabel('Referência bíblica').fill('Isaías 41.10');
   await d.getByLabel('Versículo (texto)').fill('Não temas, porque eu sou contigo; não te assombres, porque eu sou teu Deus.');
   await d.getByLabel('Mensagem').fill('Bom dia, igreja! Hoje o Senhor te lembra: você não está sozinho.');
-  await d.getByLabel(/Link do áudio ou vídeo/).fill('https://youtu.be/dQw4w9WgXcQ');
+  await d.getByLabel('Vídeo do YouTube (opcional)').fill('https://youtu.be/dQw4w9WgXcQ');
   await d.getByRole('switch', { name: /Avisar agora/ }).check();
   await d.getByRole('button', { name: 'Salvar' }).click();
   await toast(a, 'Mensagem salva.');
@@ -447,6 +447,35 @@ await check('visitante: início com Mensagem do Pastor e atalhos novos', async (
   await v.goto(BASE + '/mais');
   await v.getByText('Células e grupos').waitFor();
   await v.getByText('Palavra do dia').waitFor();
+});
+await check('admin: grava áudio da Mensagem do Pastor (estilo WhatsApp)', async () => {
+  await a.goto(BASE + '/mensagem');
+  await a.getByRole('button', { name: 'Nova' }).click();
+  const d = dialog(a);
+  await d.getByLabel('Título').fill('Palavra em áudio');
+  await d.getByLabel('Dia').fill(nextWeek);
+  await d.getByRole('button', { name: 'Gravar áudio' }).click();
+  await d.locator('.voice-rec.recording').waitFor();
+  await a.waitForTimeout(2500);
+  await shot(a, '26b-gravando.png');
+  await d.getByRole('button', { name: 'Terminar e salvar o áudio' }).click();
+  await d.locator('.voice-note').waitFor({ timeout: 15000 });
+  await d.getByRole('button', { name: 'Salvar' }).click();
+  await toast(a, 'Mensagem salva.');
+  await a.getByText('Palavra em áudio').first().click();
+  await a.locator('.voice-note').waitFor();
+  const info = await a.evaluate(async () => {
+    const r = await fetch(location.pathname.replace('/mensagem/', '/api/mensagens/')).then((x) => x.json());
+    const res = await fetch(`/api/media/${r.message.audio_id}`, { headers: { range: 'bytes=0-99' } });
+    return { status: res.status, type: res.headers.get('content-type'), len: (await res.arrayBuffer()).byteLength, dur: r.message.audio_duration };
+  });
+  if (info.status !== 206 || info.len !== 100 || !/^audio\//.test(info.type) || !(info.dur >= 2)) throw new Error(JSON.stringify(info));
+  await a.getByRole('button', { name: /Ouvir/ }).click();
+  await a.waitForFunction(() => {
+    const el = document.querySelector('.voice-note audio');
+    return el && el.currentTime > 0.3;
+  });
+  await shot(a, '26c-audio-pastor.png');
 });
 await check('admin: publica pregação pelo link do YouTube', async () => {
   await a.goto(BASE + '/pregacoes');

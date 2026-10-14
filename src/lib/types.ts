@@ -181,6 +181,7 @@ export interface PastorMessage {
   author: string | null;
   image_id: string | null;
   audio_id: string | null;
+  audio_duration?: number | null;
   media_url: string | null;
   visibility?: Visibility;
 }
