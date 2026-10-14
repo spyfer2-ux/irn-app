@@ -1,0 +1,793 @@
+From dc95f3510231d65740e5d6878e0258d97163fd2f Mon Sep 17 00:00:00 2001
+From: spyfer2-ux <spyfer2@gmail.com>
+Date: Wed, 14 Oct 2026 14:32:29 -0300
+Subject: [PATCH] =?UTF-8?q?Novidades=20de=20The=20Chosen:=20Shorts=20autom?=
+ =?UTF-8?q?=C3=A1ticos=20do=20canal=20oficial?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E796bUnPoh3mmFNerF1ctC
+---
+ src/components/ChosenReels.tsx | 207 +++++++++++++++++++++++++++++++++
+ src/pages/Scenes.tsx           |  31 ++++-
+ src/styles.css                 | 159 +++++++++++++++++++++++++
+ tests/unit.test.ts             |  29 +++++
+ worker/chosenSeed.ts           |  51 ++++++++
+ worker/cron.ts                 |   6 +
+ worker/index.ts                |   2 +
+ worker/routes/chosen.ts        | 109 +++++++++++++++++
+ worker/routes/videos.ts        |   2 +-
+ worker/schema.ts               |  18 ++-
+ 10 files changed, 608 insertions(+), 6 deletions(-)
+ create mode 100644 src/components/ChosenReels.tsx
+ create mode 100644 worker/chosenSeed.ts
+ create mode 100644 worker/routes/chosen.ts
+
+diff --git a/src/components/ChosenReels.tsx b/src/components/ChosenReels.tsx
+new file mode 100644
+index 0000000..763dd57
+--- /dev/null
++++ b/src/components/ChosenReels.tsx
+@@ -0,0 +1,207 @@
++/**
++ * "Novidades de The Chosen": fileira de Shorts do canal oficial e um visualizador em tela cheia, no estilo reels
++ * (arrasta para cima para o próximo). Quem toca é o player do YouTube; o app só guarda o código do vídeo.
++ */
++import { useEffect, useRef, useState } from 'react';
++import { createPortal } from 'react-dom';
++import { Link } from 'react-router-dom';
++import { BookOpenText, ChevronDown, ChevronUp, Clapperboard, EyeOff, Play, Share2, Sparkles, X } from 'lucide-react';
++import { api, useApi } from '../lib/api';
++import { useSession } from '../lib/session';
++import { share } from '../lib/ics';
++import { chapterPath, formatRef, parseReference } from '../lib/bible';
++import { toast, toastError } from './ui';
++import { verseList } from './Passage';
++
++export interface ChosenItem {
++  youtube_id: string;
++  title: string;
++  kind: 'short' | 'video';
++  ref: string | null;
++  published_at: number;
++}
++
++/** Referência do Short já entendida pela Bíblia do app (ou null). */
++export function chosenRef(it: Pick<ChosenItem, 'ref'>) {
++  if (!it.ref) return null;
++  const r = parseReference(it.ref);
++  if (!r) return null;
++  return { ...r, label: formatRef(r.book, r.chapter, verseList(r.verse, r.verseEnd), 'livre'), path: chapterPath(r.book, r.chapter, r.verse) };
++}
++
++const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
++const embed = (id: string) => `https://www.youtube.com/embed/${id}?autoplay=1&playsinline=1&rel=0`;
++
++export function ChosenShorts({ onMakeScene }: { onMakeScene?: (it: ChosenItem) => void }) {
++  const { data, reload } = useApi<{ items: ChosenItem[] }>('/cenas/novidades');
++  const [open, setOpen] = useState<number | null>(null);
++  const [hidden, setHidden] = useState<string[]>([]);
++  const items = (data?.items ?? []).filter((i) => !hidden.includes(i.youtube_id));
++  if (!items.length) return null;
++
++  return (
++    <section className="stack" style={{ gap: 8 }} aria-label="Novidades de The Chosen">
++      <div className="row" style={{ alignItems: 'center', gap: 8 }}>
++        <Sparkles size={18} />
++        <h2 style={{ fontSize: 17, margin: 0 }}>Novidades de The Chosen</h2>
++      </div>
++      <div className="reels-strip">
++        {items.map((it, i) => (
++          <button key={it.youtube_id} className="reel-card" onClick={() => setOpen(i)} aria-label={`Assistir: ${it.title}`}>
++            <img src={thumb(it.youtube_id)} alt="" loading="lazy" referrerPolicy="no-referrer" />
++            <span className="reel-play">
++              <Play size={18} fill="currentColor" />
++            </span>
++            <span className="reel-title clamp-2">{it.title}</span>
++          </button>
++        ))}
++      </div>
++      {open !== null && (
++        <ReelsViewer
++          items={items}
++          start={open}
++          onClose={() => setOpen(null)}
++          onHide={(id) => {
++            setHidden((h) => [...h, id]);
++            void reload();
++          }}
++          onMakeScene={onMakeScene}
++        />
++      )}
++    </section>
++  );
++}
++
++function ReelsViewer({
++  items,
++  start,
++  onClose,
++  onHide,
++  onMakeScene,
++}: {
++  items: ChosenItem[];
++  start: number;
++  onClose: () => void;
++  onHide: (id: string) => void;
++  onMakeScene?: (it: ChosenItem) => void;
++}) {
++  const { isMedia } = useSession();
++  const box = useRef<HTMLDivElement>(null);
++  const [active, setActive] = useState(start);
++
++  // Abre já no Short tocado e trava a rolagem da página por trás.
++  useEffect(() => {
++    const el = box.current;
++    if (el) el.scrollTop = start * el.clientHeight;
++    const prev = document.body.style.overflow;
++    document.body.style.overflow = 'hidden';
++    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
++    addEventListener('keydown', onKey);
++    return () => {
++      document.body.style.overflow = prev;
++      removeEventListener('keydown', onKey);
++    };
++  }, []);
++
++  const onScroll = () => {
++    const el = box.current;
++    if (!el) return;
++    const i = Math.round(el.scrollTop / el.clientHeight);
++    if (i !== active && i >= 0 && i < items.length) setActive(i);
++  };
++
++  const go = (i: number) => {
++    const el = box.current;
++    if (el && i >= 0 && i < items.length) el.scrollTo({ top: i * el.clientHeight, behavior: 'smooth' });
++  };
++
++  const shareIt = async (it: ChosenItem) => {
++    const url = `https://www.youtube.com/shorts/${it.youtube_id}`;
++    try {
++      if (navigator.share) return void (await navigator.share({ title: it.title, text: `🎬 ${it.title}`, url }));
++    } catch (e) {
++      if ((e as Error).name === 'AbortError') return;
++    }
++    const r = await share(it.title, `🎬 ${it.title}\n${url}`, '/cenas');
++    if (r === 'copied') toast('Link copiado!', 'ok');
++  };
++
++  const hide = async (it: ChosenItem) => {
++    try {
++      await api(`/cenas/novidades/${it.youtube_id}/esconder`, { method: 'POST' });
++      toast('Vídeo escondido.', 'ok');
++      onHide(it.youtube_id);
++      if (items.length <= 1) onClose();
++    } catch (e) {
++      toastError(e);
++    }
++  };
++
++  return createPortal(
++    <div className="reels-viewer" role="dialog" aria-modal="true" aria-label="Shorts de The Chosen">
++      <button className="reels-close" aria-label="Fechar" onClick={onClose}>
++        <X />
++      </button>
++      <div className="reels-nav">
++        <button aria-label="Anterior" disabled={active === 0} onClick={() => go(active - 1)}>
++          <ChevronUp />
++        </button>
++        <button aria-label="Próximo" disabled={active >= items.length - 1} onClick={() => go(active + 1)}>
++          <ChevronDown />
++        </button>
++      </div>
++      <div className="reels-scroll" ref={box} onScroll={onScroll}>
++        {items.map((it, i) => {
++          const ref = chosenRef(it);
++          return (
++            <div className="reel-slide" key={it.youtube_id}>
++              <div className="reel-frame">
++                {i === active ? (
++                  <iframe
++                    src={embed(it.youtube_id)}
++                    title={it.title}
++                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
++                    allowFullScreen
++                    referrerPolicy="strict-origin-when-cross-origin"
++                  />
++                ) : (
++                  <img src={thumb(it.youtube_id)} alt="" loading="lazy" referrerPolicy="no-referrer" />
++                )}
++              </div>
++              <div className="reel-info">
++                <div className="reel-text">{it.title}</div>
++                {ref && (
++                  <Link className="reel-ref" to={ref.path} onClick={onClose}>
++                    <BookOpenText size={14} /> {ref.label}
++                  </Link>
++                )}
++                <div className="reel-actions">
++                  <button onClick={() => void shareIt(it)}>
++                    <Share2 size={16} /> Compartilhar
++                  </button>
++                  {isMedia && onMakeScene && (
++                    <button
++                      onClick={() => {
++                        onClose();
++                        onMakeScene(it);
++                      }}
++                    >
++                      <Clapperboard size={16} /> Virar cena
++                    </button>
++                  )}
++                  {isMedia && (
++                    <button onClick={() => void hide(it)}>
++                      <EyeOff size={16} /> Esconder
++                    </button>
++                  )}
++                </div>
++              </div>
++            </div>
++          );
++        })}
++      </div>
++      <div className="reels-foot">Canal oficial The Chosen no YouTube · arraste para cima para o próximo</div>
++    </div>,
++    document.body,
++  );
++}
+diff --git a/src/pages/Scenes.tsx b/src/pages/Scenes.tsx
+index e10b736..0eaeb65 100644
+--- a/src/pages/Scenes.tsx
++++ b/src/pages/Scenes.tsx
+@@ -14,6 +14,7 @@ import { bookByN } from '../lib/bible';
+ import { Button, Chips, confirmDialog, Empty, ErrorBox, LoadingList, Page, Sheet, TextField, Toggle, toast, toastError, useAction } from '../components/ui';
+ import { parseClock } from '../lib/clock';
+ import { clock, passageLabel, PassageCard, PassageField, readPassage, SceneCard } from '../components/Passage';
++import { ChosenShorts, chosenRef, type ChosenItem } from '../components/ChosenReels';
+ 
+ /** Segundo de início que veio no próprio link (…?t=83 ou &t=1m23s). */
+ function startFromLink(url: string): number | null {
+@@ -42,6 +43,7 @@ export default function Scenes() {
+   const { isMedia } = useSession();
+   const [book, setBook] = useState('');
+   const [adding, setAdding] = useState(false);
++  const [fromShort, setFromShort] = useState<ChosenItem | null>(null);
+   const { data, error, loading, reload } = useApi<{ scenes: Scene[] }>('/cenas');
+   const all = data?.scenes ?? [];
+   const books = useMemo(() => [...new Set(all.map((s) => s.bible_book))].sort((a, b) => a - b), [all]);
+@@ -63,6 +65,7 @@ export default function Scenes() {
+         <p className="muted" style={{ margin: 0 }}>
+           Trechos da série <em>The Chosen</em> com a passagem da Bíblia, uma palavra do pastor e perguntas para conversar na célula e em família.
+         </p>
++        <ChosenShorts onMakeScene={setFromShort} />
+         {books.length > 1 && (
+           <Chips value={book} onChange={setBook} options={[{ value: '', label: 'Todos os livros' }, ...books.map((n) => ({ value: String(n), label: bookByN(n).pt }))]} />
+         )}
+@@ -87,6 +90,13 @@ export default function Scenes() {
+         </p>
+       </div>
+       {adding && <SceneSheet onClose={() => setAdding(false)} onDone={() => void reload()} />}
++      {fromShort && (
++        <SceneSheet
++          prefill={{ link: `https://youtube.com/shorts/${fromShort.youtube_id}`, title: fromShort.title, ref: chosenRef(fromShort)?.label ?? '' }}
++          onClose={() => setFromShort(null)}
++          onDone={() => void reload()}
++        />
++      )}
+     </Page>
+   );
+ }
+@@ -196,14 +206,27 @@ export function SceneDetail() {
+ 
+ // ---------------- cadastro ----------------
+ 
+-function SceneSheet({ scene, onClose, onDone, onDeleted }: { scene?: Scene; onClose: () => void; onDone: () => void; onDeleted?: () => void }) {
++function SceneSheet({
++  scene,
++  prefill,
++  onClose,
++  onDone,
++  onDeleted,
++}: {
++  scene?: Scene;
++  /** Vindo de um Short de "Novidades de The Chosen": já preenche link, título e passagem. */
++  prefill?: { link: string; title: string; ref: string };
++  onClose: () => void;
++  onDone: () => void;
++  onDeleted?: () => void;
++}) {
+   const navigate = useNavigate();
+-  const [link, setLink] = useState(scene ? `https://youtu.be/${scene.youtube_id}` : '');
++  const [link, setLink] = useState(scene ? `https://youtu.be/${scene.youtube_id}` : (prefill?.link ?? ''));
+   const [start, setStart] = useState(scene ? clock(scene.start_s) : '');
+   const [end, setEnd] = useState(scene?.end_s ? clock(scene.end_s) : '');
+-  const [title, setTitle] = useState(scene?.title ?? '');
++  const [title, setTitle] = useState(scene?.title ?? prefill?.title.slice(0, 140) ?? '');
+   const [episode, setEpisode] = useState(scene?.episode ?? '');
+-  const [ref, setRef] = useState(scene ? passageLabel(scene) : '');
++  const [ref, setRef] = useState(scene ? passageLabel(scene) : (prefill?.ref ?? ''));
+   const [text, setText] = useState(scene?.pastor_text ?? '');
+   const [questions, setQuestions] = useState<string[]>(() => {
+     const q = [...(scene?.questions ?? [])];
+diff --git a/src/styles.css b/src/styles.css
+index 63d2292..08c3368 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -1932,3 +1932,162 @@ a.stat {
+     font-size: 36px;
+   }
+ }
++
++/* ---------- Novidades de The Chosen (Shorts) ---------- */
++.reels-strip {
++  display: flex;
++  gap: 10px;
++  overflow-x: auto;
++  scroll-snap-type: x mandatory;
++  padding-bottom: 4px;
++  margin: 0 -16px;
++  padding-inline: 16px;
++  scrollbar-width: none;
++}
++.reels-strip::-webkit-scrollbar { display: none; }
++.reel-card {
++  position: relative;
++  flex: 0 0 118px;
++  aspect-ratio: 9 / 16;
++  border-radius: 14px;
++  overflow: hidden;
++  scroll-snap-align: start;
++  background: var(--surface-3);
++  border: 0;
++  padding: 0;
++  cursor: pointer;
++  text-align: left;
++}
++.reel-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
++.reel-card::after {
++  content: '';
++  position: absolute;
++  inset: 0;
++  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0) 55%);
++}
++.reel-play {
++  position: absolute;
++  top: 8px;
++  right: 8px;
++  z-index: 1;
++  width: 30px;
++  height: 30px;
++  border-radius: 50%;
++  display: grid;
++  place-items: center;
++  background: rgba(0, 0, 0, 0.45);
++  color: #fff;
++}
++.reel-title {
++  position: absolute;
++  left: 8px;
++  right: 8px;
++  bottom: 8px;
++  z-index: 1;
++  color: #fff;
++  font-size: 12px;
++  font-weight: 600;
++  line-height: 1.3;
++}
++.reels-viewer {
++  position: fixed;
++  inset: 0;
++  z-index: 1000;
++  background: #000;
++  color: #fff;
++}
++.reels-scroll {
++  height: 100%;
++  overflow-y: auto;
++  scroll-snap-type: y mandatory;
++  overscroll-behavior: contain;
++  scrollbar-width: none;
++}
++.reels-scroll::-webkit-scrollbar { display: none; }
++.reel-slide {
++  height: 100%;
++  scroll-snap-align: start;
++  scroll-snap-stop: always;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  padding: max(52px, env(safe-area-inset-top)) 0 0;
++}
++.reel-frame {
++  flex: 1;
++  min-height: 0;
++  aspect-ratio: 9 / 16;
++  max-width: 100%;
++  border-radius: 14px;
++  overflow: hidden;
++  background: #111;
++}
++.reel-frame iframe, .reel-frame img { width: 100%; height: 100%; border: 0; object-fit: cover; display: block; }
++.reel-info {
++  width: min(100%, 520px);
++  padding: 12px 16px calc(36px + env(safe-area-inset-bottom));
++  display: flex;
++  flex-direction: column;
++  gap: 8px;
++}
++.reel-text { font-weight: 650; font-size: 15px; line-height: 1.35; }
++.reel-ref {
++  align-self: flex-start;
++  display: inline-flex;
++  align-items: center;
++  gap: 6px;
++  padding: 4px 10px;
++  border-radius: 999px;
++  background: rgba(255, 255, 255, 0.14);
++  color: #f3d58a;
++  font-size: 13px;
++  font-weight: 600;
++  text-decoration: none;
++}
++.reel-actions { display: flex; flex-wrap: wrap; gap: 8px; }
++.reel-actions button {
++  display: inline-flex;
++  align-items: center;
++  gap: 6px;
++  padding: 7px 12px;
++  border-radius: 999px;
++  border: 1px solid rgba(255, 255, 255, 0.25);
++  background: transparent;
++  color: #fff;
++  font: inherit;
++  font-size: 13px;
++  cursor: pointer;
++}
++.reels-close, .reels-nav button {
++  width: 40px;
++  height: 40px;
++  border-radius: 50%;
++  border: 0;
++  display: grid;
++  place-items: center;
++  background: rgba(255, 255, 255, 0.14);
++  color: #fff;
++  cursor: pointer;
++}
++.reels-close { position: absolute; top: max(8px, env(safe-area-inset-top)); right: 12px; z-index: 2; }
++.reels-nav {
++  position: absolute;
++  right: 12px;
++  top: 50%;
++  transform: translateY(-50%);
++  z-index: 2;
++  display: flex;
++  flex-direction: column;
++  gap: 10px;
++}
++.reels-nav button:disabled { opacity: 0.3; cursor: default; }
++.reels-foot {
++  position: absolute;
++  left: 0;
++  right: 0;
++  bottom: calc(8px + env(safe-area-inset-bottom));
++  text-align: center;
++  font-size: 11px;
++  color: rgba(255, 255, 255, 0.55);
++  pointer-events: none;
++}
+diff --git a/tests/unit.test.ts b/tests/unit.test.ts
+index d96b65d..ed83c66 100644
+--- a/tests/unit.test.ts
++++ b/tests/unit.test.ts
+@@ -237,3 +237,32 @@ test('cenas: catálogo oficial de The Chosen é válido', () => {
+   }
+   assert.equal(catalogInserts().length, SCENES_CATALOG.length);
+ });
++
++// ---------------- Novidades de The Chosen ----------------
++import { parseFeed, refFromTitle } from '../worker/routes/chosen';
++import { chosenSeedInserts, CHOSEN_SEED_COUNT } from '../worker/chosenSeed';
++import { parseReference } from '../src/lib/bible';
++
++test('the chosen: lê o feed do YouTube e separa os Shorts', () => {
++  const xml = `<feed><entry><yt:videoId>kd-h0mkFIl4</yt:videoId><title>Filming &amp; more</title>
++    <link rel="alternate" href="https://www.youtube.com/shorts/kd-h0mkFIl4"/><published>2026-10-12T21:00:22+00:00</published></entry>
++    <entry><yt:videoId>VL8DThllZAY</yt:videoId><title>Jesus Heals the Leper (Matthew 8)</title>
++    <link rel="alternate" href="https://www.youtube.com/watch?v=VL8DThllZAY"/><published>2026-10-11T15:21:42+00:00</published></entry>
++    <entry><yt:videoId>bad</yt:videoId><title>x</title></entry></feed>`;
++  const items = parseFeed(xml);
++  assert.equal(items.length, 2);
++  assert.deepEqual([items[0].kind, items[0].title, items[0].ref], ['short', 'Filming & more', null]);
++  assert.deepEqual([items[1].kind, items[1].ref], ['video', 'Matthew 8']);
++  assert.equal(items[0].published_at, Date.parse('2026-10-12T21:00:22+00:00'));
++});
++
++test('the chosen: referência do título vira passagem da Bíblia do app', () => {
++  assert.equal(refFromTitle('Jesus Cleanses the Temple (Mark 11:15-18)'), 'Mark 11:15-18');
++  assert.equal(refFromTitle('I AM the Resurrection and the Life (John 11:25)'), 'John 11:25');
++  assert.equal(refFromTitle('THAT scene from Season 5, Episode Two.'), null);
++  assert.equal(refFromTitle('Healed (The Chosen Scene)'), null);
++  for (const [txt, n] of [['Mark 11:15-18', 41], ['John 11:25', 43], ['Matthew 8', 40], ['Luke 5', 42], ['mc 5:35-43', 41]] as const) {
++    assert.equal(parseReference(txt)?.book.n, n, txt);
++  }
++  assert.equal(chosenSeedInserts().length, CHOSEN_SEED_COUNT);
++});
+diff --git a/worker/chosenSeed.ts b/worker/chosenSeed.ts
+new file mode 100644
+index 0000000..0301a09
+--- /dev/null
++++ b/worker/chosenSeed.ts
+@@ -0,0 +1,51 @@
++/**
++ * Primeiros Shorts de "Novidades de The Chosen", já conferidos no canal oficial (@TheChosenSeries).
++ * Depois disso o app busca os novos sozinho no feed do canal (ver routes/chosen.ts).
++ * "ref" é a passagem bíblica do Short, quando dá para saber com certeza.
++ */
++const SHORTS: [id: string, title: string, ref?: string][] = [
++  ['X2eOFzeOp2U', 'Também humanos...'],
++  ['zfZph8VG3J4', 'Precisamos desse lembrete mais vezes do que gostaríamos de admitir...'],
++  ['XUe39Ebthaw', 'Seu lembrete diário para não jogar a toalha.'],
++  ['guzf8NY1rkE', 'Essa frase nos faz parar tudo toda vez.'],
++  ['3rQkhmgiGWI', 'Da cegueira à visão. Da morte à vida.'],
++  ['519EZODONZM', 'Um encontro momentâneo pode mudar o curso da vida para sempre.'],
++  ['hJMPtEEd6VI', 'Pedro, "a Rocha"', 'mt 16:18'],
++  ['FOORUTVQl4o', 'Essa é uma pergunta que vale a pena refletir.'],
++  ['6LczXw2Z2xM', 'O que parece o fim é só o começo.'],
++  ['cc3jBuUKFNg', 'O caminho do Senhor está preparado.', 'mt 3:3'],
++  ['x8XhToe9SG4', 'Pronto? Com certeza. Fácil? Jamais.'],
++  ['5izy4qz8in0', 'Uma das nossas falas mais marcantes...'],
++  ['Rg8hDrWoIbs', 'A última conversa de André e João.'],
++  ['F6XV8LnjL1Y', 'Jesus se revela a Fótina, a mulher que se sentia assombrada pelo passado.', 'jo 4:1-42'],
++  ['83oDWQ8rh0Y', 'Fótina era assombrada pelo seu passado...', 'jo 4:1-42'],
++  ['4-cT1AN4ZX0', 'Este não é só mais um rabino.'],
++  ['q-DR0l2s-n8', 'São estes os dias…'],
++  ['tyEwjqU5bWY', 'Ela abriu o telhado de um estranho só para o amigo ser curado.', 'mc 2:1-12'],
++  ['_yyIc2X62MI', 'Te seguir? Nem precisa pedir.'],
++  ['UkMxixn1s9A', 'Simão tem o que chamaríamos de "um passado".'],
++  ['ait92Jj72Zk', 'Um momento que não tem volta.'],
++  ['y-eFuNmdh7s', 'Não precisa ser complicado.'],
++  ['1YpJ55IK8LU', 'AQUELA cena da 5ª temporada, episódio dois.'],
++  ['IOPRlvc1m6Y', 'Pedro só está tentando acompanhar o ritmo.'],
++  ['4JcQOSvq6DI', 'Quer saber o que ela pediu?'],
++  ['_tPmsWMn-Wo', 'Ainda bem que Jesus não aceita sugestões.'],
++  ['btDvCEFfKAU', 'Este pai não estava pronto para desistir. (1/3)', 'mc 5:21-24'],
++  ['HEd2yHYW2No', 'Quanta fé... e ele nem conhecia Jesus ainda. (2/3)', 'mc 5:21-24'],
++  ['wsbHoXaeLAk', '"Menina, levante-se." (3/3)', 'mc 5:35-43'],
++  ['6U_1qIcY6co', 'Não é o primeiro milagre "errado" que Ele faz... e não será o último.'],
++];
++
++const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
++
++/** SQL que coloca os Shorts iniciais no banco (do mais novo para o mais antigo). */
++export function chosenSeedInserts(newest = Date.UTC(2026, 9, 12, 21)): string[] {
++  return SHORTS.map(
++    ([id, title, ref], i) =>
++      `INSERT INTO chosen_feed (youtube_id, title, kind, ref, published_at, hidden, created_at)
++       VALUES (${q(id)}, ${q(title)}, 'short', ${ref ? q(ref) : 'NULL'}, ${newest - i * 86400000}, 0, ${newest})
++       ON CONFLICT(youtube_id) DO NOTHING`,
++  );
++}
++
++export const CHOSEN_SEED_COUNT = SHORTS.length;
+diff --git a/worker/cron.ts b/worker/cron.ts
+index 79031e4..cec9cb1 100644
+--- a/worker/cron.ts
++++ b/worker/cron.ts
+@@ -5,6 +5,7 @@
+  * - avisa a Palavra do dia e a Mensagem do Pastor;
+  * - parabeniza aniversariantes e avisa a liderança;
+  * - busca vídeos novos do canal do YouTube (1 vez por hora);
++ * - busca os Shorts novos do canal oficial de The Chosen (a cada 3 horas);
+  * - encerra lives esquecidas abertas e faz a limpeza diária.
+  */
+ import type { Env } from './types';
+@@ -13,6 +14,7 @@ import { getSettings } from './settings';
+ import { drain, notify } from './push';
+ import { endLive } from './routes/live';
+ import { syncYoutube } from './routes/videos';
++import { syncChosen } from './routes/chosen';
+ import { fmtWhen } from './routes/community';
+ import { cleanupMedia } from './storage';
+ 
+@@ -150,6 +152,10 @@ export async function runCron(env: Env, at = now()): Promise<void> {
+     if (youtube.auto_import && at - youtube.last_sync > 55 * 60000) await syncYoutube(env);
+   });
+ 
++  await step('the chosen', async () => {
++    await syncChosen(env);
++  });
++
+   await step('limpeza', async () => {
+     if (p.hour !== 3 || !(await mark(env, `limpeza:${p.ymd}`))) return;
+     await env.DB.batch([
+diff --git a/worker/index.ts b/worker/index.ts
+index 29b4f75..3f0df3d 100644
+--- a/worker/index.ts
++++ b/worker/index.ts
+@@ -12,6 +12,7 @@ import { mediaRoutes } from './storage';
+ import { photoRoutes } from './routes/photos';
+ import { videoRoutes } from './routes/videos';
+ import { sceneRoutes } from './routes/scenes';
++import { chosenRoutes } from './routes/chosen';
+ import { liveRoutes } from './routes/live';
+ import { communityRoutes } from './routes/community';
+ import { careRoutes } from './routes/care';
+@@ -63,6 +64,7 @@ app.route('/api/push', pushRoutes);
+ app.route('/api/media', mediaRoutes);
+ app.route('/api/fotos', photoRoutes);
+ app.route('/api/videos', videoRoutes);
++app.route('/api/cenas/novidades', chosenRoutes);
+ app.route('/api/cenas', sceneRoutes);
+ app.route('/api/live', liveRoutes);
+ app.route('/api', communityRoutes);
+diff --git a/worker/routes/chosen.ts b/worker/routes/chosen.ts
+new file mode 100644
+index 0000000..65a5fac
+--- /dev/null
++++ b/worker/routes/chosen.ts
+@@ -0,0 +1,109 @@
++/**
++ * "Novidades de The Chosen": Shorts (reels) e vídeos novos do canal OFICIAL da série no YouTube.
++ * O app lê sozinho o feed público do canal (sem chave nem senha), algumas vezes por dia, e guarda só o código
++ * de cada vídeo — quem toca é o player do YouTube. A equipe de mídia pode esconder um vídeo ou transformá-lo em cena.
++ */
++import { Hono } from 'hono';
++import type { AppEnv, Env } from '../types';
++import { fail, needMedia, now } from '../util';
++import { decodeXml } from './videos';
++
++export const chosenRoutes = new Hono<AppEnv>();
++
++/** Canal oficial da série The Chosen no YouTube (@TheChosenSeries). */
++export const CHOSEN_CHANNEL = 'UCBXOFnNTULFaAnj24PAeblg';
++/** De quanto em quanto tempo o app confere o feed. */
++const EVERY = 3 * 3600_000;
++
++export interface FeedItem {
++  youtube_id: string;
++  title: string;
++  kind: 'short' | 'video';
++  ref: string | null;
++  published_at: number;
++}
++
++/** Referência bíblica que o próprio canal põe no título: "Jesus Heals the Leper (Matthew 8)" → "Matthew 8". */
++export function refFromTitle(title: string): string | null {
++  const m = title.match(/\(([1-3]?\s?[\p{L}]+(?:\s[\p{L}]+)?\s\d{1,3}(?::\d{1,3}(?:-\d{1,3})?)?)\)/u);
++  return m ? m[1] : null;
++}
++
++/** Lê o XML do feed do YouTube. */
++export function parseFeed(xml: string): FeedItem[] {
++  const out: FeedItem[] = [];
++  for (const [, e] of xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)) {
++    const id = e.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)?.[1];
++    if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) continue;
++    const title = decodeXml(e.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? '').trim().slice(0, 200) || 'The Chosen';
++    const link = e.match(/<link rel="alternate" href="([^"]+)"/)?.[1] ?? '';
++    out.push({
++      youtube_id: id,
++      title,
++      kind: link.includes('/shorts/') ? 'short' : 'video',
++      ref: refFromTitle(title),
++      published_at: Date.parse(e.match(/<published>([^<]+)<\/published>/)?.[1] ?? '') || now(),
++    });
++  }
++  return out;
++}
++
++const lastSync = async (env: Env) =>
++  Number((await env.DB.prepare("SELECT value FROM meta WHERE key = 'chosen_sync'").first<{ value: string }>())?.value ?? 0);
++
++/** Busca o feed e guarda os vídeos novos (os que já estão no app não mudam). */
++export async function syncChosen(env: Env, force = false): Promise<{ added: number; error?: string }> {
++  const at = now();
++  if (!force && at - (await lastSync(env)) < EVERY) return { added: 0 };
++  await env.DB.prepare("INSERT INTO meta (key, value) VALUES ('chosen_sync', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
++    .bind(String(at))
++    .run();
++  let xml = '';
++  try {
++    const res = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${CHOSEN_CHANNEL}`, {
++      headers: { 'user-agent': 'Mozilla/5.0 (app IRN)' },
++    });
++    if (!res.ok) throw new Error(`YouTube respondeu ${res.status}`);
++    xml = await res.text();
++  } catch (e) {
++    console.error('feed The Chosen falhou', String(e));
++    return { added: 0, error: 'Não consegui acessar o YouTube agora.' };
++  }
++  const items = parseFeed(xml);
++  if (!items.length) return { added: 0 };
++  const res = await env.DB.batch(
++    items.map((i) =>
++      env.DB.prepare(
++        `INSERT INTO chosen_feed (youtube_id, title, kind, ref, published_at, hidden, created_at)
++         VALUES (?, ?, ?, ?, ?, 0, ?) ON CONFLICT(youtube_id) DO NOTHING`,
++      ).bind(i.youtube_id, i.title, i.kind, i.ref, i.published_at, at),
++    ),
++  );
++  return { added: res.reduce((s, r) => s + (r.meta.changes ?? 0), 0) };
++}
++
++chosenRoutes.get('/', async (c) => {
++  // Se a tarefa automática ainda não rodou (ou está desligada), confere o feed em segundo plano.
++  c.executionCtx.waitUntil(syncChosen(c.env).catch((e) => console.error('feed The Chosen', String(e))));
++  const tipo = c.req.query('tipo');
++  const kind = tipo === 'video' ? 'video' : tipo === 'todos' ? null : 'short';
++  const { results } = await c.env.DB.prepare(
++    `SELECT youtube_id, title, kind, ref, published_at FROM chosen_feed
++     WHERE hidden = 0 ${kind ? 'AND kind = ?' : ''} ORDER BY published_at DESC LIMIT 60`,
++  )
++    .bind(...(kind ? [kind] : []))
++    .all<FeedItem>();
++  return c.json({ items: results });
++});
++
++chosenRoutes.post('/atualizar', async (c) => {
++  needMedia(c);
++  return c.json(await syncChosen(c.env, true));
++});
++
++chosenRoutes.post('/:yt{[A-Za-z0-9_-]{11}}/esconder', async (c) => {
++  needMedia(c);
++  const r = await c.env.DB.prepare('UPDATE chosen_feed SET hidden = 1 WHERE youtube_id = ?').bind(c.req.param('yt')).run();
++  if (!r.meta.changes) fail(404, 'Vídeo não encontrado.');
++  return c.json({ ok: true });
++});
+diff --git a/worker/routes/videos.ts b/worker/routes/videos.ts
+index a6449fd..6391745 100644
+--- a/worker/routes/videos.ts
++++ b/worker/routes/videos.ts
+@@ -41,7 +41,7 @@ export async function oembed(id: string): Promise<{ title?: string; author_name?
+   }
+ }
+ 
+-function decodeXml(s: string): string {
++export function decodeXml(s: string): string {
+   return s
+     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+diff --git a/worker/schema.ts b/worker/schema.ts
+index f6b5acd..f2717ac 100644
+--- a/worker/schema.ts
++++ b/worker/schema.ts
+@@ -4,6 +4,7 @@
+  * Para mudar a estrutura no futuro, acrescente uma NOVA posição no fim da lista MIGRATIONS (nunca edite as antigas).
+  */
+ import { catalogInserts } from './scenesCatalog';
++import { chosenSeedInserts } from './chosenSeed';
+ 
+ const V1 = [
+   `CREATE TABLE IF NOT EXISTS users (
+@@ -478,7 +479,22 @@ const V3 = [
+ // V4: já vem com as cenas oficiais de The Chosen (vídeos do canal oficial, com a passagem e perguntas).
+ const V4 = catalogInserts();
+ 
+-export const MIGRATIONS: string[][] = [V1, V2, V3, V4];
++// V5: "Novidades de The Chosen" — Shorts e vídeos novos do canal oficial, lidos sozinhos do feed do YouTube.
++const V5 = [
++  `CREATE TABLE IF NOT EXISTS chosen_feed (
++    youtube_id TEXT PRIMARY KEY,
++    title TEXT NOT NULL,
++    kind TEXT NOT NULL DEFAULT 'short',
++    ref TEXT,
++    published_at INTEGER NOT NULL,
++    hidden INTEGER NOT NULL DEFAULT 0,
++    created_at INTEGER NOT NULL
++  )`,
++  `CREATE INDEX IF NOT EXISTS idx_chosen_feed ON chosen_feed(kind, hidden, published_at)`,
++  ...chosenSeedInserts(),
++];
++
++export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5];
+ 
+ let ready: Promise<void> | null = null;
+ 
+-- 
+2.43.0
+
