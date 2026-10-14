@@ -70,7 +70,7 @@ function Credit({ v }: { v: VersionId }) {
       <p className="bible-credit">
         <strong>King James em português (tradução IRN)</strong>: tradução própria do Ministério Profético Restaurando Nações, feita com ajuda de
         inteligência artificial a partir da King James Version de 1769 (domínio público). Não é a King James Atualizada (KJA) nem outra
-        tradução publicada. Já traduzidos: de Gênesis a Deuteronômio e todo o Novo Testamento; os outros livros estão a caminho. Encontrou um erro? Avise a liderança.
+        tradução publicada. Bíblia completa, de Gênesis a Apocalipse. Encontrou um erro? Avise a liderança.
       </p>
     );
   return v === 'livre' ? (
