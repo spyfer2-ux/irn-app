@@ -4,8 +4,8 @@ export const TOPIC_LABELS: Record<string, { label: string; hint: string; members
   lives: { label: 'Lives', hint: 'Quando a igreja entrar ao vivo' },
   cultos: { label: 'Lembrete dos cultos', hint: 'Antes de cada culto' },
   eventos: { label: 'Eventos', hint: 'Eventos novos e lembretes' },
-  palavra: { label: 'Palavra do dia', hint: 'Mensagem diária da liderança' },
-  avisos: { label: 'Avisos', hint: 'Recados importantes da igreja' },
+  palavra: { label: 'Mensagem do Pastor e Palavra do dia', hint: 'A mensagem diária do pastor e da liderança' },
+  avisos: { label: 'Avisos e pregações', hint: 'Recados da igreja e pregações novas' },
   fotos: { label: 'Fotos novas', hint: 'Quando alguém publica fotos', members: true },
   oracao: { label: 'Pedidos de oração', hint: 'Novos pedidos no mural', members: true },
 };

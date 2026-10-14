@@ -15,6 +15,7 @@ export const VIDEO_PART = 8 * 1024 * 1024;
 
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 const VIDEO_MIMES = ['video/mp4', 'video/quicktime', 'video/webm'];
+const AUDIO_MIMES = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/ogg', 'audio/wav', 'audio/webm'];
 const IMAGE_KINDS = ['photo', 'thumb', 'receipt', 'cover', 'poster', 'logo', 'icon'] as const;
 type ImageKind = (typeof IMAGE_KINDS)[number];
 
@@ -168,20 +169,21 @@ mediaRoutes.post('/', async (c) => {
 
 mediaRoutes.post('/video/start', async (c) => {
   const u = needMedia(c);
-  if (!c.env.BUCKET) fail(400, 'Para enviar vídeos pelo app, ative o armazenamento R2 (veja Administração → Configurações).');
-  const b = (await c.req.json().catch(() => ({}))) as { mime?: string; size?: number; access?: string };
-  const mime = oneOf(b.mime, VIDEO_MIMES, 'formato do vídeo');
+  if (!c.env.BUCKET) fail(400, 'Para enviar vídeos e áudios pelo app, ative o armazenamento R2 (veja Administração → Configurações).');
+  const b = (await c.req.json().catch(() => ({}))) as { mime?: string; size?: number; access?: string; kind?: string };
+  const kind = b.kind === 'audio' ? 'audio' : 'video';
+  const mime = kind === 'audio' ? oneOf(b.mime, AUDIO_MIMES, 'formato do áudio') : oneOf(b.mime, VIDEO_MIMES, 'formato do vídeo');
   const size = int(b.size, 1, MAX_VIDEO, 'tamanho');
-  if (!size) fail(400, 'Tamanho do vídeo não informado.');
+  if (!size) fail(400, 'Tamanho do arquivo não informado.');
   const access = b.access === 'public' ? 'public' : 'members';
   await rateLimit(c.env, `vid:${u.id}`, 30, 3600_000);
   const id = randomToken(18);
   const mpu = await c.env.BUCKET.createMultipartUpload(key(id), { httpMetadata: { contentType: mime } });
   await c.env.DB.prepare(
     `INSERT INTO media (id, kind, mime, size, storage, owner_id, access, status, upload_id, created_at)
-     VALUES (?, 'video', ?, ?, 'r2', ?, ?, 'uploading', ?, ?)`,
+     VALUES (?, ?, ?, ?, 'r2', ?, ?, 'uploading', ?, ?)`,
   )
-    .bind(id, mime, size, u.id, access, mpu.uploadId, now())
+    .bind(id, kind, mime, size, u.id, access, mpu.uploadId, now())
     .run();
   return c.json({ id, partSize: VIDEO_PART, parts: Math.ceil(size / VIDEO_PART) });
 });
@@ -189,7 +191,7 @@ mediaRoutes.post('/video/start', async (c) => {
 async function ownUpload(c: Ctx, id: string): Promise<MediaRow> {
   const u = needMedia(c);
   const m = await getMedia(c.env, id);
-  if (!m || m.kind !== 'video' || m.status !== 'uploading' || !m.upload_id) fail(404, 'Envio não encontrado.');
+  if (!m || (m.kind !== 'video' && m.kind !== 'audio') || m.status !== 'uploading' || !m.upload_id) fail(404, 'Envio não encontrado.');
   if (m.owner_id !== u.id && !isAdmin(u)) fail(403, 'Este envio é de outra pessoa.');
   if (!c.env.BUCKET) fail(400, 'Armazenamento R2 não está ativo.');
   return m;
@@ -248,7 +250,7 @@ export async function serveMedia(c: Ctx, m: MediaRow, opts: { download?: boolean
   headers.set('x-content-type-options', 'nosniff');
   headers.set('cache-control', opts.cache ?? (m.access === 'public' ? 'public, max-age=31536000, immutable' : 'private, max-age=31536000, immutable'));
   if (opts.download) {
-    const ext = m.mime.split('/')[1]?.replace('quicktime', 'mov').replace('jpeg', 'jpg') ?? 'bin';
+    const ext = m.mime.split('/')[1]?.replace('quicktime', 'mov').replace('jpeg', 'jpg').replace('mpeg', 'mp3').replace('x-m4a', 'm4a') ?? 'bin';
     headers.set('content-disposition', `attachment; filename="irn-${m.kind}-${m.id.slice(0, 8)}.${ext}"`);
   }
   if (m.storage === 'r2') {

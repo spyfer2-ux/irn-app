@@ -171,6 +171,52 @@ export interface Word {
   visibility: Visibility;
 }
 
+export interface PastorMessage {
+  id: number;
+  day: string;
+  title: string;
+  reference: string | null;
+  verse: string | null;
+  body?: string | null;
+  author: string | null;
+  image_id: string | null;
+  audio_id: string | null;
+  media_url: string | null;
+  visibility?: Visibility;
+}
+
+export interface Sermon {
+  id: number;
+  title: string;
+  preacher: string | null;
+  reference: string | null;
+  description: string | null;
+  preached_on: string;
+  audio_id: string | null;
+  audio_url: string | null;
+  youtube_id: string | null;
+  cover_id: string | null;
+  duration: number | null;
+  visibility: Visibility;
+  plays: number;
+}
+
+export type HelpKind = 'preciso' | 'ofereco';
+export interface HelpPost {
+  id: number;
+  user_id: number;
+  kind: HelpKind;
+  category: string;
+  title: string;
+  body: string | null;
+  contact: string | null;
+  status: 'pendente' | 'aprovado' | 'recusado' | 'resolvido';
+  review_note: string | null;
+  created_at: number;
+  author_name: string | null;
+  author_picture: string | null;
+}
+
 export interface Prayer {
   id: number;
   user_id: number | null;
@@ -281,5 +327,6 @@ export interface HomeData {
   photos: { id: number; thumb_id: string; album_id: number | null }[];
   birthdays: { id: number; name: string; picture: string | null; md: string; today: boolean }[];
   campaigns: (Campaign & { done_today: number })[];
-  pending: { users: number; testimonies: number; visitors: number; requests: number } | null;
+  pending: { users: number; testimonies: number; visitors: number; requests: number; help?: number } | null;
+  pastor?: PastorMessage | null;
 }

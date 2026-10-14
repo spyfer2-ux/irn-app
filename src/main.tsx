@@ -17,6 +17,8 @@ import { PrayerPage, TestimoniesPage } from './pages/Care';
 import { CampaignDetail, Campaigns, Ministries } from './pages/Groups';
 import ChurchPage, { Privacy, VisitorCard } from './pages/Church';
 import BiblePage, { BibleChapter } from './pages/Bible';
+import { HelpBoard, PastorDetail, PastorMessages, SermonDetail, Sermons } from './pages/Extras';
+import { MarkedVerses } from './pages/BibleMarks';
 import { Birthdays, Inbox, Login, More, NotFound, Pending, Profile } from './pages/Account';
 
 const Giving = lazy(() => import('./pages/Giving'));
@@ -72,7 +74,13 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/avisos" element={<Notices />} />
               <Route path="/palavra" element={<Words />} />
               <Route path="/palavra/:id" element={<WordDetail />} />
+              <Route path="/mensagem" element={<PastorMessages />} />
+              <Route path="/mensagem/:id" element={<PastorDetail />} />
+              <Route path="/pregacoes" element={<Sermons />} />
+              <Route path="/pregacoes/:id" element={<SermonDetail />} />
+              <Route path="/ajuda" element={<HelpBoard />} />
               <Route path="/biblia" element={<BiblePage />} />
+              <Route path="/biblia/marcados" element={<MarkedVerses />} />
               <Route path="/biblia/:livro/:cap" element={<BibleChapter />} />
               <Route path="/oracao" element={<PrayerPage />} />
               <Route path="/testemunhos" element={<TestimoniesPage />} />

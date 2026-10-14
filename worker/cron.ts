@@ -2,7 +2,7 @@
  * Tarefas automáticas (rodam a cada 5 minutos):
  * - termina de enviar notificações pendentes;
  * - lembrete antes de cada culto e de cada evento;
- * - avisa a Palavra do dia;
+ * - avisa a Palavra do dia e a Mensagem do Pastor;
  * - parabeniza aniversariantes e avisa a liderança;
  * - busca vídeos novos do canal do YouTube (1 vez por hora);
  * - encerra lives esquecidas abertas e faz a limpeza diária.
@@ -90,6 +90,25 @@ export async function runCron(env: Env, at = now()): Promise<void> {
       title: `Palavra do dia: ${w.title}`,
       body: w.reference ?? 'Toque para ler.',
       url: `/palavra/${w.id}`,
+    });
+  });
+
+  await step('mensagem do pastor', async () => {
+    if (p.hour < reminders.word_hour) return;
+    const m = await env.DB.prepare(
+      'SELECT id, title, reference, visibility FROM pastor_messages WHERE day = ? AND notified = 0 ORDER BY id LIMIT 1',
+    )
+      .bind(p.ymd)
+      .first<{ id: number; title: string; reference: string | null; visibility: string }>();
+    if (!m) return;
+    const r = await env.DB.prepare('UPDATE pastor_messages SET notified = 1 WHERE id = ? AND notified = 0').bind(m.id).run();
+    if (!r.meta.changes) return;
+    await notify(env, {
+      topic: 'palavra',
+      audience: m.visibility === 'public' ? 'all' : 'members',
+      title: `Mensagem do Pastor: ${m.title}`,
+      body: m.reference ?? 'Toque para ler e ouvir.',
+      url: `/mensagem/${m.id}`,
     });
   });
 

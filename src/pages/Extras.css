@@ -1,0 +1,72 @@
+/* Mensagem do Pastor, pregações e ajuda mútua */
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-box .ico {
+  position: absolute;
+  left: 14px;
+  width: 20px;
+  height: 20px;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.search-box .input {
+  padding-left: 44px;
+  border-radius: 999px;
+}
+
+.pastor-card {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: linear-gradient(155deg, #0b1d3f, #1d4596);
+  color: #fff;
+  text-decoration: none !important;
+  box-shadow: 0 6px 20px rgba(11, 29, 63, 0.18);
+}
+.pastor-card-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  object-fit: cover;
+}
+.pastor-card-body {
+  padding: 18px;
+}
+.pastor-card .kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #e8c47e;
+}
+.pastor-card h3 {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 560;
+  margin-top: 6px;
+  color: #fff;
+}
+.pastor-card .verse {
+  color: rgba(255, 255, 255, 0.92);
+}
+.pastor-card .muted {
+  color: rgba(255, 255, 255, 0.75);
+}
+.pastor-card .badge.gold {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.audio-box {
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.audio-box .seg button {
+  min-width: 46px;
+}
