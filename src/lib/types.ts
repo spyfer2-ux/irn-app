@@ -103,6 +103,7 @@ export interface Video {
   visibility: Visibility;
   hidden: number;
   published_at: number;
+  created_at: number;
 }
 
 export interface Photo {
