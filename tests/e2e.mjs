@@ -118,6 +118,20 @@ await check('visitante: vídeos importados do canal do YouTube', async () => {
   await v.locator('.video-card').first().waitFor();
   await shot(v, '03-videos.png');
 });
+await check('admin: publica vídeo pelo link do Google Drive', async () => {
+  await a.goto(BASE + '/videos');
+  await a.getByRole('button', { name: 'Adicionar' }).click();
+  const d = dialog(a);
+  await d.getByRole('button', { name: 'Link do Drive' }).click();
+  await d.getByLabel(/Link do vídeo no Drive/).fill('https://drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/view?usp=sharing');
+  await d.getByLabel('Título').fill('Louvor da Rede Jovem');
+  await d.getByRole('button', { name: 'Adicionar' }).click();
+  await a.waitForURL(/\/videos\/\d+$/);
+  const src = await a.locator('.player iframe').first().getAttribute('src');
+  if (!src || !src.includes('drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/preview'))
+    throw new Error('o player do Drive não apareceu no vídeo: ' + src);
+  await a.getByRole('link', { name: 'Abrir no Google Drive' }).waitFor();
+});
 await check('visitante: dados de dízimo só para membros', async () => {
   await v.goto(BASE + '/dizimos');
   await v.getByText('área dos membros', { exact: false }).first().waitFor();
@@ -338,16 +352,26 @@ await check('membro: pede para participar de uma célula', async () => {
   await toast(m, 'Pedido enviado!');
   await shot(m, '17-grupos.png');
 });
-await check('membro: envia testemunho e a liderança publica', async () => {
+await check('membro: envia testemunho com vídeo do Drive e a liderança publica', async () => {
   await m.goto(BASE + '/testemunhos');
   await m.getByRole('button', { name: 'Contar' }).click();
   await dialog(m).getByLabel('Título (opcional)').fill('Deus abriu uma porta de emprego');
   await dialog(m).getByLabel('Seu testemunho').fill('Depois de meses procurando, fui contratada nesta semana. Glória a Deus!');
+  await dialog(m).getByLabel(/Vídeo do Google Drive/).fill('https://drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/view?usp=sharing');
   await dialog(m).getByRole('button', { name: 'Enviar para publicação' }).click();
   await toast(m, 'Enviado!');
   await a.goto(BASE + '/testemunhos?status=pendente');
   await a.getByRole('button', { name: 'Publicar' }).click();
   await toast(a, 'Testemunho publicado.');
+});
+await check('visitante: vê o testemunho publicado e o vídeo do Drive, sem login', async () => {
+  await v.goto(BASE + '/testemunhos');
+  await v.getByText('Deus abriu uma porta de emprego').waitFor();
+  const src = await v.locator('.player iframe').first().getAttribute('src');
+  if (!src || !src.includes('drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/preview'))
+    throw new Error('o player do Drive não apareceu no testemunho: ' + src);
+  if (await v.getByRole('button', { name: 'Contar' }).count()) throw new Error('visitante não deveria poder contar testemunho');
+  await shot(v, '17b-testemunhos.png');
 });
 await check('membro: aniversário aparece na semana', async () => {
   await m.goto(BASE + '/');
