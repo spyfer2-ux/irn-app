@@ -90,9 +90,8 @@ export interface Live {
 
 export interface Video {
   id: number;
-  source: 'youtube' | 'upload' | 'drive';
+  source: 'youtube' | 'upload';
   youtube_id: string | null;
-  drive_id: string | null;
   media_id: string | null;
   poster_id: string | null;
   title: string;
@@ -245,7 +244,8 @@ export interface Testimony {
   title: string | null;
   body: string;
   image_id: string | null;
-  video_drive_id: string | null;
+  video_youtube_id: string | null;
+  video_vertical: number;
   status: 'pendente' | 'aprovado' | 'recusado';
   amen_count: number;
   created_at: number;
