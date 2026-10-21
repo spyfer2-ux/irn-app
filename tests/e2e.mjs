@@ -131,6 +131,8 @@ const addDrive = async (page, fileId, title) => {
 
 await check('admin: publica vídeo pelo link do Google Drive', async () => {
   await addDrive(a, '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv', 'Louvor da Rede Jovem');
+  // A tela mostra a capa; o player do Drive só entra depois do play.
+  await a.locator('.drive-capa').click();
   const src = await a.locator('.player iframe').first().getAttribute('src');
   if (!src || !src.includes('drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/preview'))
     throw new Error('o player do Drive não apareceu no vídeo: ' + src);
@@ -385,6 +387,9 @@ await check('membro: envia testemunho com vídeo do Drive e a liderança publica
 await check('visitante: vê o testemunho publicado e o vídeo do Drive, sem login', async () => {
   await v.goto(BASE + '/testemunhos');
   await v.getByText('Deus abriu uma porta de emprego').waitFor();
+  // Com foto e vídeo, o testemunho mostra uma mídia só: a foto vira a capa do vídeo.
+  if (await v.locator('.cover').count()) throw new Error('o testemunho mostrou a foto e o vídeo separados');
+  await v.locator('.drive-capa').click();
   const src = await v.locator('.player iframe').first().getAttribute('src');
   if (!src || !src.includes('drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/preview'))
     throw new Error('o player do Drive não apareceu no testemunho: ' + src);
