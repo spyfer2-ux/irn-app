@@ -59,7 +59,7 @@ async function newPhone(name, opts = {}) {
     if (m.type() !== 'error') return;
     const t = m.text();
     // A rede do ambiente de teste não acessa YouTube/Google Maps/Cloudflare Stream de verdade.
-    if (/youtube|ytimg|google\.com|cloudflarestream|ERR_|net::|Failed to load resource|CSP|frame/i.test(t)) return;
+    if (/youtube|ytimg|google\.com|cloudflarestream|ERR_|net::|Failed to load resource|CSP|frame|permissions policy/i.test(t)) return;
     errors.push(`[${name}] ${t}`);
   });
   page.on('pageerror', (e) => errors.push(`[${name}] erro na página: ${e.message}`));
@@ -118,19 +118,37 @@ await check('visitante: vídeos importados do canal do YouTube', async () => {
   await v.locator('.video-card').first().waitFor();
   await shot(v, '03-videos.png');
 });
-await check('admin: publica vídeo pelo link do Google Drive', async () => {
-  await a.goto(BASE + '/videos');
-  await a.getByRole('button', { name: 'Adicionar' }).click();
-  const d = dialog(a);
+const addDrive = async (page, fileId, title) => {
+  await page.goto(BASE + '/videos');
+  await page.getByRole('button', { name: 'Adicionar' }).click();
+  const d = dialog(page);
   await d.getByRole('button', { name: 'Link do Drive' }).click();
-  await d.getByLabel(/Link do vídeo no Drive/).fill('https://drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/view?usp=sharing');
-  await d.getByLabel('Título').fill('Louvor da Rede Jovem');
+  await d.getByLabel(/Link do vídeo no Drive/).fill(`https://drive.google.com/file/d/${fileId}/view?usp=sharing`);
+  await d.getByLabel('Título').fill(title);
   await d.getByRole('button', { name: 'Adicionar' }).click();
-  await a.waitForURL(/\/videos\/\d+$/);
+  await page.waitForURL(/\/videos\/\d+$/);
+};
+
+await check('admin: publica vídeo pelo link do Google Drive', async () => {
+  await addDrive(a, '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv', 'Louvor da Rede Jovem');
   const src = await a.locator('.player iframe').first().getAttribute('src');
   if (!src || !src.includes('drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/preview'))
     throw new Error('o player do Drive não apareceu no vídeo: ' + src);
   await a.getByRole('link', { name: 'Abrir no Google Drive' }).waitFor();
+});
+await check('vídeo novo aparece em destaque e com o selo "Novo"', async () => {
+  await addDrive(a, '9Z8y7X6w5V4u3T2s1R0qPoNmLkJiHgFe', 'Coral da igreja');
+  await a.goto(BASE + '/videos');
+  await a.locator('.video-highlight').getByText('Novo vídeo publicado').waitFor();
+  await a.locator('.video-highlight').getByText('Coral da igreja').waitFor();
+  // O outro vídeo de hoje fica na grade com o selo; os antigos do canal, não.
+  await a.locator('.video-grid .thumb .novo').first().waitFor();
+  if (await a.locator('.video-grid .thumb .novo').count() !== 1) throw new Error('selo "Novo" em vídeo que não é de hoje');
+  await v.goto(BASE + '/');
+  await v.locator('.video-highlight').getByText('Novo vídeo publicado').waitFor();
+  if (!(await v.locator('.thumb .novo').count())) throw new Error('o selo "Novo" não apareceu na capa');
+  await shot(a, '03b-videos-destaque.png', true);
+  await shot(v, '03c-inicio-destaque.png', true);
 });
 await check('visitante: dados de dízimo só para membros', async () => {
   await v.goto(BASE + '/dizimos');
