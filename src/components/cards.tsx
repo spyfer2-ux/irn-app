@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarPlus, ExternalLink, MapPin, Pin, Play } from 'lucide-react';
 import type { Church, Cult, EventItem, Notice, Video } from '../lib/types';
@@ -22,9 +23,53 @@ export function isVideoNovo(v: Pick<Video, 'created_at' | 'published_at'> | unde
   return Date.now() - Math.min(entrou, publicado) < DIAS_NOVO * 86400000;
 }
 
+/** Capa que o próprio Google Drive gera para o arquivo. */
+export function driveThumb(id: string, largura = 960) {
+  return `https://drive.google.com/thumbnail?id=${id}&sz=w${largura}`;
+}
+
+/**
+ * Vídeo guardado no Google Drive: mostra a capa e só carrega o player do Drive quando
+ * a pessoa toca em play. Se nem a capa carrega, o arquivo está privado — e aí explica o que fazer.
+ */
+export function DriveVideo({ id, title, posterId, full }: { id: string; title?: string | null; posterId?: string | null; full?: boolean }) {
+  const [tocando, setTocando] = useState(false);
+  const [semCapa, setSemCapa] = useState(false);
+  const classe = `player${full ? ' player-full' : ''}`;
+
+  if (tocando) {
+    return (
+      <div className={classe}>
+        <iframe
+          src={`https://drive.google.com/file/d/${id}/preview`}
+          title={title || 'Vídeo'}
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" className={`${classe} drive-capa`} onClick={() => setTocando(true)} aria-label={`Assistir ${title || 'o vídeo'}`}>
+      {posterId ? (
+        <MediaImg id={posterId} />
+      ) : semCapa ? null : (
+        <img src={driveThumb(id)} alt="" referrerPolicy="no-referrer" onError={() => setSemCapa(true)} />
+      )}
+      <span className="play">
+        <span>
+          <Play size={26} fill="currentColor" />
+        </span>
+      </span>
+    </button>
+  );
+}
+
 export function videoThumb(v: Pick<Video, 'source' | 'youtube_id' | 'drive_id' | 'poster_id'>) {
   if (v.source === 'youtube' && v.youtube_id) return `https://i.ytimg.com/vi/${v.youtube_id}/hqdefault.jpg`;
-  if (v.source === 'drive' && v.drive_id) return `https://drive.google.com/thumbnail?id=${v.drive_id}&sz=w640`;
+  if (v.source === 'drive' && v.drive_id) return driveThumb(v.drive_id, 640);
   if (v.poster_id) return mediaUrl(v.poster_id);
   return '';
 }
