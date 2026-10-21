@@ -24,7 +24,7 @@ import {
   toastError,
   useAction,
 } from '../components/ui';
-import { VideoCard } from '../components/cards';
+import { isVideoNovo, VideoCard, VideoHighlight } from '../components/cards';
 
 const CATEGORIES = ['Cultos e pregações', 'Louvor', 'Rede Jovem', 'Testemunhos', 'Estudos', 'Eventos', 'Avisos', 'Vídeos curtos'];
 
@@ -60,6 +60,9 @@ export default function Videos() {
     setNext(r.next);
   };
   const list = [...(data?.videos ?? []), ...more];
+  // Sem filtro na tela, o vídeo mais novo sobe para um cartão grande no alto.
+  const destaque = fonte === 'todos' && !cat && !query && list[0] && !list[0].hidden && isVideoNovo(list[0]) ? list[0] : null;
+  const grade = destaque ? list.slice(1) : list;
 
   useEffect(() => {
     const t = setTimeout(() => setQuery(q.trim()), 350);
@@ -112,14 +115,19 @@ export default function Videos() {
         {loading && !data ? (
           <LoadingList n={4} h={190} />
         ) : list.length ? (
-          <div className="video-grid">
-            {list.map((v) => (
-              <div key={v.id} style={{ opacity: v.hidden ? 0.5 : 1 }}>
-                <VideoCard v={v} />
-                {v.hidden ? <span className="badge mt-1">Oculto</span> : null}
+          <>
+            {destaque && <VideoHighlight v={destaque} />}
+            {grade.length > 0 && (
+              <div className="video-grid">
+                {grade.map((v) => (
+                  <div key={v.id} style={{ opacity: v.hidden ? 0.5 : 1 }}>
+                    <VideoCard v={v} />
+                    {v.hidden ? <span className="badge mt-1">Oculto</span> : null}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         ) : (
           <Empty
             icon={<Film />}
@@ -172,11 +180,11 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
         navigate(`/videos/${r.id}`);
       } else if (mode === 'drive') {
         if (!title.trim()) throw new Error('Dê um título ao vídeo.');
-        const r = await api<{ id: number }>('/videos/drive', {
+        const r = await api<{ id: number; aviso?: string | null }>('/videos/drive', {
           method: 'POST',
           body: { url, title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members' },
         });
-        toast('Vídeo do Drive adicionado!', 'ok');
+        toast(r.aviso || 'Vídeo do Drive adicionado!', r.aviso ? 'error' : 'ok');
         onDone();
         onClose();
         navigate(`/videos/${r.id}`);
@@ -369,6 +377,11 @@ export function VideoDetail() {
               ) : null}
             </div>
           </div>
+          {v.source === 'drive' && (
+            <p className="tiny muted">
+              Não abriu o vídeo? No Google Drive o arquivo precisa estar em Compartilhar → Acesso geral → "Qualquer pessoa com o link".
+            </p>
+          )}
           {v.description && <p className="pre" style={{ color: 'var(--ink-2)' }}>{v.description}</p>}
           {v.source === 'upload' && (
             <a className="btn btn-secondary" href={`${mediaUrl(v.media_id!)}?baixar=1`}>
