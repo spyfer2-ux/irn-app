@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { AppEnv, Env } from '../types';
-import { auditLog, body, bool, fail, int, isMedia, isMember, needMedia, now, oneOf, reqStr, str, visibleSet } from '../util';
+import { auditLog, body, bool, driveFileId, fail, int, isMedia, isMember, needMedia, now, oneOf, reqStr, str, visibleSet } from '../util';
 import { claimMedia, deleteMedia, optionalMedia, useMediaStmt } from '../storage';
 import { getSetting, setSetting } from '../settings';
 
@@ -105,7 +105,7 @@ videoRoutes.get('/', async (c) => {
   const binds: unknown[] = [...vis];
   if (!(isMedia(u) && c.req.query('ocultos') === '1')) conds.push('v.hidden = 0');
   const fonte = c.req.query('fonte');
-  if (fonte === 'youtube' || fonte === 'upload') {
+  if (fonte === 'youtube' || fonte === 'upload' || fonte === 'drive') {
     conds.push('v.source = ?');
     binds.push(fonte);
   }
@@ -176,6 +176,32 @@ videoRoutes.post('/youtube', async (c) => {
     .bind(
       id,
       title,
+      str(b.description, 2000, { label: 'descrição' }),
+      str(b.category, 60, { label: 'categoria' }) ?? DEFAULT_CATEGORY,
+      str(b.speaker, 80, { label: 'pregador' }),
+      b.visibility === 'members' ? 'members' : 'public',
+      now(),
+      u.id,
+      now(),
+    )
+    .first<{ id: number }>();
+  return c.json({ id: row!.id });
+});
+
+videoRoutes.post('/drive', async (c) => {
+  const u = needMedia(c);
+  const b = await body(c);
+  const id = driveFileId(reqStr(b.url, 400, 'o link do Google Drive'));
+  if (!id) fail(400, 'Não reconheci este link do Google Drive. No Drive: abra o vídeo → Compartilhar → Copiar link.');
+  const exists = await c.env.DB.prepare('SELECT id FROM videos WHERE drive_id = ?').bind(id).first<{ id: number }>();
+  if (exists) fail(409, 'Este vídeo do Drive já está no app.');
+  const row = await c.env.DB.prepare(
+    `INSERT INTO videos (source, drive_id, title, description, category, speaker, visibility, published_at, created_by, created_at)
+     VALUES ('drive', ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+  )
+    .bind(
+      id,
+      reqStr(b.title, 200, 'o título'),
       str(b.description, 2000, { label: 'descrição' }),
       str(b.category, 60, { label: 'categoria' }) ?? DEFAULT_CATEGORY,
       str(b.speaker, 80, { label: 'pregador' }),

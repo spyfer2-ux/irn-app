@@ -6,13 +6,14 @@ import { downloadIcs, googleCalendarUrl, type CalItem } from '../lib/ics';
 import { isIos } from '../lib/push';
 import { MediaImg, mediaUrl } from './ui';
 
-export function videoThumb(v: Pick<Video, 'source' | 'youtube_id' | 'poster_id'>) {
+export function videoThumb(v: Pick<Video, 'source' | 'youtube_id' | 'drive_id' | 'poster_id'>) {
   if (v.source === 'youtube' && v.youtube_id) return `https://i.ytimg.com/vi/${v.youtube_id}/hqdefault.jpg`;
+  if (v.source === 'drive' && v.drive_id) return `https://drive.google.com/thumbnail?id=${v.drive_id}&sz=w640`;
   if (v.poster_id) return mediaUrl(v.poster_id);
   return '';
 }
 
-export function VideoCard({ v }: { v: Pick<Video, 'id' | 'source' | 'youtube_id' | 'poster_id' | 'title' | 'duration' | 'published_at' | 'category'> }) {
+export function VideoCard({ v }: { v: Pick<Video, 'id' | 'source' | 'youtube_id' | 'drive_id' | 'poster_id' | 'title' | 'duration' | 'published_at' | 'category'> }) {
   const thumb = videoThumb(v);
   return (
     <Link to={`/videos/${v.id}`} className="video-card">

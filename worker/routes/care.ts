@@ -6,6 +6,7 @@ import {
   body,
   bool,
   clientIp,
+  driveFileId,
   fail,
   int,
   isLeader,
@@ -161,16 +162,17 @@ careRoutes.delete('/oracao/:id{[0-9]+}', async (c) => {
 // =============== TESTEMUNHOS ===============
 
 careRoutes.get('/testemunhos', async (c) => {
-  const u = needMember(c);
+  // Os testemunhos publicados são abertos a todos, inclusive quem não tem login.
+  const u = c.get('user');
   const status = c.req.query('status');
   const conds: string[] = [];
-  const binds: unknown[] = [u.id];
+  const binds: unknown[] = [u?.id ?? 0];
   if (status === 'pendente') {
     if (!isLeader(u)) fail(403, 'Só a liderança vê os testemunhos em análise.');
     conds.push("t.status = 'pendente'");
   } else if (status === 'meus') {
     conds.push('t.user_id = ?');
-    binds.push(u.id);
+    binds.push(needUser(c).id);
   } else {
     conds.push("t.status = 'aprovado'");
   }
@@ -190,12 +192,16 @@ careRoutes.post('/testemunhos', async (c) => {
   await rateLimit(c.env, `test:${u.id}`, 10, 3600_000);
   const b = await body(c);
   const image = await optionalMedia(c.env, b.image_id, u, ['cover', 'photo']);
+  const link = str(b.video_url, 400, { label: 'link do vídeo' });
+  const drive = link ? driveFileId(link) : null;
+  if (link && !drive) fail(400, 'Não reconheci este link do Google Drive. No Drive: abra o vídeo → Compartilhar → Copiar link.');
   const stmts = [
-    c.env.DB.prepare('INSERT INTO testimonies (user_id, title, body, image_id, created_at) VALUES (?, ?, ?, ?, ?)').bind(
+    c.env.DB.prepare('INSERT INTO testimonies (user_id, title, body, image_id, video_drive_id, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(
       u.id,
       str(b.title, 120, { label: 'título' }),
       reqStr(b.body, 5000, 'o testemunho'),
       image,
+      drive,
       now(),
     ),
   ];

@@ -16,7 +16,6 @@ import {
   LoadingList,
   LoginPrompt,
   MediaImg,
-  MembersOnly,
   Page,
   Seg,
   Sheet,
@@ -274,23 +273,20 @@ function AnsweredSheet({ prayer, onClose, onDone }: { prayer: Prayer; onClose: (
 // ======================= TESTEMUNHOS =======================
 
 export function TestimoniesPage() {
-  return (
-    <MembersOnly>
-      <TestimoniesInner />
-    </MembersOnly>
-  );
+  // Os testemunhos publicados são abertos a todos; contar um continua sendo coisa de membro.
+  return <TestimoniesInner />;
 }
 
 function TestimoniesInner() {
-  const { isLeader } = useSession();
+  const { user, isMember, isLeader } = useSession();
   const [params, setParams] = useSearchParams();
   const status = params.get('status') ?? 'aprovado';
   const { data, error, loading, reload, mutate } = useApi<{ testimonies: Testimony[] }>(`/testemunhos?status=${status}`);
   const [writing, setWriting] = useState(false);
 
   useEffect(() => {
-    if (!isLeader && status === 'pendente') setParams({}, { replace: true });
-  }, [isLeader, status, setParams]);
+    if ((!isLeader && status === 'pendente') || (!user && status === 'meus')) setParams({}, { replace: true });
+  }, [isLeader, user, status, setParams]);
 
   const amen = async (t: Testimony) => {
     if (t.amen) return;
@@ -312,9 +308,11 @@ function TestimoniesInner() {
     <Page
       title="Testemunhos"
       actions={
-        <Button size="sm" icon={<Plus />} onClick={() => setWriting(true)}>
-          Contar
-        </Button>
+        isMember && (
+          <Button size="sm" icon={<Plus />} onClick={() => setWriting(true)}>
+            Contar
+          </Button>
+        )
       }
     >
       <div className="stack">
@@ -323,7 +321,7 @@ function TestimoniesInner() {
           onChange={(v) => setParams({ status: v }, { replace: true })}
           options={[
             { value: 'aprovado', label: 'Testemunhos' },
-            { value: 'meus', label: 'Os meus' },
+            ...(user ? [{ value: 'meus', label: 'Os meus' }] : []),
             ...(isLeader ? [{ value: 'pendente', label: 'Para revisar' }] : []),
           ]}
         />
@@ -334,6 +332,17 @@ function TestimoniesInner() {
           data.testimonies.map((t) => (
             <article key={t.id} className="card" style={{ overflow: 'hidden' }}>
               {t.image_id && <MediaImg id={t.image_id} className="cover" style={{ borderRadius: 0 }} />}
+              {t.video_drive_id && (
+                <div className="player">
+                  <iframe
+                    src={`https://drive.google.com/file/d/${t.video_drive_id}/preview`}
+                    title={t.title ?? 'Vídeo do testemunho'}
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                </div>
+              )}
               <div className="card-pad stack" style={{ gap: 10 }}>
                 <div className="row">
                   <Avatar name={t.author_name ?? '?'} picture={t.author_picture} size={34} />
@@ -346,7 +355,7 @@ function TestimoniesInner() {
                 {t.title && <h3 style={{ fontFamily: 'var(--serif)', fontWeight: 560, fontSize: 19 }}>{t.title}</h3>}
                 <p className="pre">{t.body}</p>
                 <div className="row" style={{ flexWrap: 'wrap' }}>
-                  {t.status === 'aprovado' && (
+                  {t.status === 'aprovado' && isMember && (
                     <Button size="sm" variant={t.amen ? 'gold' : 'secondary'} icon={<Heart />} onClick={() => void amen(t)}>
                       Amém {t.amen_count ? `· ${t.amen_count}` : ''}
                     </Button>
@@ -400,6 +409,7 @@ function TestimonySheet({ onClose, onDone }: { onClose: () => void; onDone: () =
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [image, setImage] = useState<string | null>(null);
+  const [video, setVideo] = useState('');
   const { busy, run } = useAction();
   return (
     <Sheet
@@ -412,7 +422,7 @@ function TestimonySheet({ onClose, onDone }: { onClose: () => void; onDone: () =
           loading={busy}
           onClick={() =>
             void run(async () => {
-              await api('/testemunhos', { method: 'POST', body: { title, body, image_id: image } });
+              await api('/testemunhos', { method: 'POST', body: { title, body, image_id: image, video_url: video.trim() || null } });
               onDone();
               onClose();
             }, 'Enviado! A liderança vai publicar em breve.')
@@ -426,6 +436,14 @@ function TestimonySheet({ onClose, onDone }: { onClose: () => void; onDone: () =
         <TextField label="Título (opcional)" value={title} onChange={setTitle} maxLength={120} placeholder="Ex.: Deus curou minha mãe" />
         <TextField label="Seu testemunho" value={body} onChange={setBody} multiline rows={7} maxLength={5000} />
         <CoverPicker value={image} onChange={setImage} access="members" label="Foto (opcional)" />
+        <TextField
+          label="Vídeo do Google Drive (opcional)"
+          value={video}
+          onChange={setVideo}
+          inputMode="url"
+          placeholder="https://drive.google.com/file/d/…"
+          hint={'No Drive: abra o vídeo → Compartilhar → em "Acesso geral" escolha "Qualquer pessoa com o link" → Copiar link.'}
+        />
         <p className="tiny muted">A liderança lê antes de publicar para a igreja.</p>
       </div>
     </Sheet>
