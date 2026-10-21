@@ -1171,6 +1171,37 @@ p {
   border-radius: var(--radius);
   overflow: hidden;
 }
+.drive-capa {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+.drive-capa img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.drive-capa .play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(transparent 45%, rgba(0, 0, 0, 0.4));
+}
+.drive-capa .play > span {
+  width: 58px;
+  height: 58px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(6px);
+}
 .player iframe,
 .player video {
   position: absolute;
