@@ -37,7 +37,7 @@ interface VideoList {
 
 export default function Videos() {
   const { isMedia } = useSession();
-  const [fonte, setFonte] = useState<'todos' | 'youtube' | 'drive' | 'upload'>('todos');
+  const [fonte, setFonte] = useState<'todos' | 'youtube' | 'upload'>('todos');
   const [cat, setCat] = useState('');
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
@@ -101,7 +101,6 @@ export default function Videos() {
           options={[
             { value: 'todos', label: 'Todos' },
             { value: 'youtube', label: 'Cultos (YouTube)' },
-            { value: 'drive', label: 'Vídeos do Drive' },
             { value: 'upload', label: 'Vídeos do app' },
           ]}
         />
@@ -150,7 +149,7 @@ export default function Videos() {
 function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const { features } = useSession();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<'youtube' | 'drive' | 'upload' | 'sync'>('youtube');
+  const [mode, setMode] = useState<'youtube' | 'upload' | 'sync'>('youtube');
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -178,16 +177,6 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
           body: { url, title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', poster_id: capa, vertical: emPe },
         });
         toast('Vídeo adicionado!', 'ok');
-        onDone();
-        onClose();
-        navigate(`/videos/${r.id}`);
-      } else if (mode === 'drive') {
-        if (!title.trim()) throw new Error('Dê um título ao vídeo.');
-        const r = await api<{ id: number; aviso?: string | null }>('/videos/drive', {
-          method: 'POST',
-          body: { url, title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', poster_id: capa, vertical: emPe },
-        });
-        toast(r.aviso || 'Vídeo do Drive adicionado!', r.aviso ? 'error' : 'ok');
         onDone();
         onClose();
         navigate(`/videos/${r.id}`);
@@ -225,7 +214,7 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
       }}
       footer={
         <Button block loading={busy} onClick={() => void save()} icon={mode === 'upload' ? <Upload /> : mode === 'sync' ? <RefreshCw /> : <Link2 />}>
-          {mode === 'youtube' || mode === 'drive' ? 'Adicionar' : mode === 'upload' ? 'Enviar vídeo' : 'Buscar vídeos novos'}
+          {mode === 'youtube' ? 'Adicionar' : mode === 'upload' ? 'Enviar vídeo' : 'Buscar vídeos novos'}
         </Button>
       }
     >
@@ -235,7 +224,6 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
           onChange={setMode}
           options={[
             { value: 'youtube', label: 'Link do YouTube' },
-            { value: 'drive', label: 'Link do Drive' },
             { value: 'upload', label: 'Enviar do celular' },
             { value: 'sync', label: 'Canal da igreja' },
           ]}
@@ -248,24 +236,6 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
           <>
             {mode === 'youtube' ? (
               <TextField label="Link do vídeo" value={url} onChange={setUrl} placeholder="https://youtu.be/…" inputMode="url" hint="Abra o vídeo no YouTube → Compartilhar → Copiar link." />
-            ) : mode === 'drive' ? (
-              <>
-                <TextField
-                  label="Link do vídeo no Drive"
-                  value={url}
-                  onChange={setUrl}
-                  placeholder="https://drive.google.com/file/d/…"
-                  inputMode="url"
-                  hint={'No Drive: abra o vídeo → Compartilhar → em "Acesso geral" escolha "Qualquer pessoa com o link" → Copiar link.'}
-                />
-                <div className="alert">
-                  <Link2 />
-                  <div>
-                    O arquivo continua no Google Drive da igreja e toca aqui pelo player do Drive. Quem tiver o link abre o vídeo fora do app, mesmo marcado como só para
-                    membros. Vídeo muito assistido pode bater na cota diária do Google — para o culto inteiro, prefira o YouTube.
-                  </div>
-                </div>
-              </>
             ) : !features.video_upload ? (
               <div className="alert warn">
                 <Upload />
