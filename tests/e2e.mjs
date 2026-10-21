@@ -131,11 +131,9 @@ const addDrive = async (page, fileId, title) => {
 
 await check('admin: publica vídeo pelo link do Google Drive', async () => {
   await addDrive(a, '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv', 'Louvor da Rede Jovem');
-  // A tela mostra a capa; o player do Drive só entra depois do play.
-  await a.locator('.drive-capa').click();
-  const src = await a.locator('.player iframe').first().getAttribute('src');
-  if (!src || !src.includes('drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/preview'))
-    throw new Error('o player do Drive não apareceu no vídeo: ' + src);
+  // Toca no player do próprio aparelho; sem internet para o Google (como aqui), cai no quadro do Drive.
+  const src = await a.locator('.player video, .player iframe').first().getAttribute('src');
+  if (!src || !src.includes('1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv')) throw new Error('o vídeo do Drive não entrou no player: ' + src);
   await a.getByRole('link', { name: 'Abrir no Google Drive' }).waitFor();
 });
 await check('vídeo novo aparece em destaque e com o selo "Novo"', async () => {
@@ -389,10 +387,9 @@ await check('visitante: vê o testemunho publicado e o vídeo do Drive, sem logi
   await v.getByText('Deus abriu uma porta de emprego').waitFor();
   // Com foto e vídeo, o testemunho mostra uma mídia só: a foto vira a capa do vídeo.
   if (await v.locator('.cover').count()) throw new Error('o testemunho mostrou a foto e o vídeo separados');
-  await v.locator('.drive-capa').click();
-  const src = await v.locator('.player iframe').first().getAttribute('src');
-  if (!src || !src.includes('drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/preview'))
-    throw new Error('o player do Drive não apareceu no testemunho: ' + src);
+  const src = await v.locator('.player video, .player iframe').first().getAttribute('src');
+  if (!src || !src.includes('1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv'))
+    throw new Error('o vídeo do Drive não entrou no player do testemunho: ' + src);
   if (await v.getByRole('button', { name: 'Contar' }).count()) throw new Error('visitante não deveria poder contar testemunho');
   await shot(v, '17b-testemunhos.png');
 });
