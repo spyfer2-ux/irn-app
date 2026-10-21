@@ -31,6 +31,15 @@ async function driveAberto(id: string): Promise<boolean | null> {
   }
 }
 
+/** Marca a capa como usada e deixa ela visível para o mesmo público do vídeo. */
+async function guardaCapa(c: Ctx, capa: string | null, visibility: string) {
+  if (!capa) return;
+  await c.env.DB.batch([
+    useMediaStmt(c.env, [capa])!,
+    c.env.DB.prepare('UPDATE media SET access = ? WHERE id = ?').bind(visibility, capa),
+  ]);
+}
+
 /** Avisa a igreja que entrou vídeo novo (vale para link do YouTube, link do Drive e envio pelo app). */
 function avisarVideoNovo(c: Ctx, id: number, title: string, visibility: string, userId: number) {
   return notifyNow(c.env, originOf(c), wait(c), {
@@ -209,8 +218,11 @@ videoRoutes.get('/:id{[0-9]+}', async (c) => {
 videoRoutes.post('/youtube', async (c) => {
   const u = needMedia(c);
   const b = await body(c);
-  const id = youtubeId(reqStr(b.url, 300, 'o link do YouTube'));
+  const link = reqStr(b.url, 300, 'o link do YouTube');
+  const id = youtubeId(link);
   if (!id) fail(400, 'Não reconheci este link do YouTube. Copie o link pelo botão "Compartilhar" do vídeo.');
+  // Link de Short já é vídeo em pé; fora isso, vale o que a equipe marcou.
+  const emPe = /\/shorts\//.test(link) || bool(b.vertical) ? 1 : 0;
   const exists = await c.env.DB.prepare('SELECT id FROM videos WHERE youtube_id = ?').bind(id).first<{ id: number }>();
   if (exists) fail(409, 'Este vídeo já está no app.');
   let title = str(b.title, 200, { label: 'título' });
@@ -220,22 +232,26 @@ videoRoutes.post('/youtube', async (c) => {
   }
   if (!title) fail(400, 'Não consegui ler o título do vídeo. Digite um título.');
   const vis = b.visibility === 'members' ? 'members' : 'public';
+  const capa = await optionalMedia(c.env, b.poster_id, u, ['cover', 'poster']);
   const row = await c.env.DB.prepare(
-    `INSERT INTO videos (source, youtube_id, title, description, category, speaker, visibility, published_at, created_by, created_at)
-     VALUES ('youtube', ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    `INSERT INTO videos (source, youtube_id, poster_id, title, description, category, speaker, visibility, vertical, published_at, created_by, created_at)
+     VALUES ('youtube', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
   )
     .bind(
       id,
+      capa,
       title,
       str(b.description, 2000, { label: 'descrição' }),
       str(b.category, 60, { label: 'categoria' }) ?? DEFAULT_CATEGORY,
       str(b.speaker, 80, { label: 'pregador' }),
       vis,
+      emPe,
       now(),
       u.id,
       now(),
     )
     .first<{ id: number }>();
+  await guardaCapa(c, capa, vis);
   await avisarVideoNovo(c, row!.id, title, vis, u.id);
   return c.json({ id: row!.id });
 });
@@ -249,22 +265,26 @@ videoRoutes.post('/drive', async (c) => {
   if (exists) fail(409, 'Este vídeo do Drive já está no app.');
   const titulo = reqStr(b.title, 200, 'o título');
   const vis = b.visibility === 'members' ? 'members' : 'public';
+  const capa = await optionalMedia(c.env, b.poster_id, u, ['cover', 'poster']);
   const row = await c.env.DB.prepare(
-    `INSERT INTO videos (source, drive_id, title, description, category, speaker, visibility, published_at, created_by, created_at)
-     VALUES ('drive', ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    `INSERT INTO videos (source, drive_id, poster_id, title, description, category, speaker, visibility, vertical, published_at, created_by, created_at)
+     VALUES ('drive', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
   )
     .bind(
       id,
+      capa,
       titulo,
       str(b.description, 2000, { label: 'descrição' }),
       str(b.category, 60, { label: 'categoria' }) ?? DEFAULT_CATEGORY,
       str(b.speaker, 80, { label: 'pregador' }),
       vis,
+      bool(b.vertical) ? 1 : 0,
       now(),
       u.id,
       now(),
     )
     .first<{ id: number }>();
+  await guardaCapa(c, capa, vis);
   await avisarVideoNovo(c, row!.id, titulo, vis, u.id);
   const aberto = await driveAberto(id);
   return c.json({
@@ -310,7 +330,7 @@ videoRoutes.post('/upload', async (c) => {
 });
 
 videoRoutes.put('/:id{[0-9]+}', async (c) => {
-  needMedia(c);
+  const u = needMedia(c);
   const id = Number(c.req.param('id'));
   const v = await c.env.DB.prepare('SELECT media_id, poster_id FROM videos WHERE id = ?')
     .bind(id)
@@ -318,22 +338,30 @@ videoRoutes.put('/:id{[0-9]+}', async (c) => {
   if (!v) fail(404, 'Vídeo não encontrado.');
   const b = await body(c);
   const visibility = oneOf(b.visibility ?? 'public', ['public', 'members'] as const, 'visibilidade');
-  const stmts = [
-    c.env.DB.prepare(
-      'UPDATE videos SET title = ?, description = ?, category = ?, speaker = ?, visibility = ?, hidden = ? WHERE id = ?',
-    ).bind(
-      reqStr(b.title, 200, 'o título'),
-      str(b.description, 2000, { label: 'descrição' }),
-      str(b.category, 60, { label: 'categoria' }),
-      str(b.speaker, 80, { label: 'pregador' }),
-      visibility,
-      bool(b.hidden) ? 1 : 0,
-      id,
-    ),
+  // Só mexe na capa quando a tela mandou o campo.
+  const trocaCapa = b.poster_id !== undefined;
+  const capa = trocaCapa ? await optionalMedia(c.env, b.poster_id, u, ['cover', 'poster']) : null;
+  const campos = ['title = ?', 'description = ?', 'category = ?', 'speaker = ?', 'visibility = ?', 'hidden = ?', 'vertical = ?'];
+  const binds: unknown[] = [
+    reqStr(b.title, 200, 'o título'),
+    str(b.description, 2000, { label: 'descrição' }),
+    str(b.category, 60, { label: 'categoria' }),
+    str(b.speaker, 80, { label: 'pregador' }),
+    visibility,
+    bool(b.hidden) ? 1 : 0,
+    bool(b.vertical) ? 1 : 0,
   ];
+  if (trocaCapa) {
+    campos.push('poster_id = ?');
+    binds.push(capa);
+  }
+  const stmts = [c.env.DB.prepare(`UPDATE videos SET ${campos.join(', ')} WHERE id = ?`).bind(...binds, id)];
   if (v.media_id)
-    stmts.push(c.env.DB.prepare('UPDATE media SET access = ? WHERE id IN (?, ?)').bind(visibility, v.media_id, v.poster_id ?? ''));
+    stmts.push(c.env.DB.prepare('UPDATE media SET access = ? WHERE id IN (?, ?)').bind(visibility, v.media_id, capa ?? v.poster_id ?? ''));
+  const usada = capa ? useMediaStmt(c.env, [capa]) : null;
+  if (usada) stmts.push(usada, c.env.DB.prepare('UPDATE media SET access = ? WHERE id = ?').bind(visibility, capa));
   await c.env.DB.batch(stmts);
+  if (trocaCapa && v.poster_id && v.poster_id !== capa) await deleteMedia(c.env, [v.poster_id]);
   return c.json({ ok: true });
 });
 
