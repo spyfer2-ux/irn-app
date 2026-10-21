@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { AppEnv, Ctx, Env } from '../types';
-import { auditLog, body, bool, driveFileId, fail, int, isMedia, isMember, needMedia, now, oneOf, originOf, reqStr, str, visibleSet } from '../util';
+import { auditLog, body, bool, fail, int, isMedia, isMember, needMedia, now, oneOf, originOf, reqStr, str, visibleSet } from '../util';
 import { drain, notify, notifyNow } from '../push';
 import { claimMedia, deleteMedia, optionalMedia, useMediaStmt } from '../storage';
 import { getSetting, setSetting } from '../settings';
@@ -11,26 +11,6 @@ export const DEFAULT_CATEGORY = 'Cultos e pregações';
 
 const wait = (c: Ctx) => (p: Promise<unknown>) => c.executionCtx.waitUntil(p);
 
-/**
- * Confere se o arquivo do Drive está aberto para quem tem o link. Não trava o cadastro:
- * devolve null quando o Google não deixa claro, para nunca barrar um vídeo bom.
- */
-async function driveAberto(id: string): Promise<boolean | null> {
-  try {
-    const res = await fetch(`https://drive.google.com/file/d/${id}/view`, {
-      redirect: 'manual',
-      headers: { 'user-agent': 'Mozilla/5.0 (app IRN)' },
-      signal: AbortSignal.timeout(4000),
-    });
-    if (res.status === 200) return true;
-    if (res.status === 403 || res.status === 404) return false;
-    if ((res.headers.get('location') ?? '').includes('accounts.google.com')) return false;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 /** Marca a capa como usada e deixa ela visível para o mesmo público do vídeo. */
 async function guardaCapa(c: Ctx, capa: string | null, visibility: string) {
   if (!capa) return;
@@ -40,7 +20,7 @@ async function guardaCapa(c: Ctx, capa: string | null, visibility: string) {
   ]);
 }
 
-/** Avisa a igreja que entrou vídeo novo (vale para link do YouTube, link do Drive e envio pelo app). */
+/** Avisa a igreja que entrou vídeo novo (vale para link do YouTube e envio pelo app). */
 function avisarVideoNovo(c: Ctx, id: number, title: string, visibility: string, userId: number) {
   return notifyNow(c.env, originOf(c), wait(c), {
     topic: 'avisos',
@@ -160,11 +140,12 @@ export async function syncYoutube(env: Env): Promise<{ added: number; error?: st
 videoRoutes.get('/', async (c) => {
   const u = c.get('user');
   const vis = visibleSet(u);
-  const conds = [`v.visibility IN (${vis.map(() => '?').join(',')})`];
+  // O Drive saiu do app: o que foi publicado por lá não aparece mais.
+  const conds = [`v.visibility IN (${vis.map(() => '?').join(',')})`, "v.source != 'drive'"];
   const binds: unknown[] = [...vis];
   if (!(isMedia(u) && c.req.query('ocultos') === '1')) conds.push('v.hidden = 0');
   const fonte = c.req.query('fonte');
-  if (fonte === 'youtube' || fonte === 'upload' || fonte === 'drive') {
+  if (fonte === 'youtube' || fonte === 'upload') {
     conds.push('v.source = ?');
     binds.push(fonte);
   }
@@ -209,8 +190,8 @@ videoRoutes.get('/:id{[0-9]+}', async (c) => {
   const u = c.get('user');
   const v = await c.env.DB.prepare('SELECT * FROM videos WHERE id = ?')
     .bind(Number(c.req.param('id')))
-    .first<{ visibility: string; hidden: number }>();
-  if (!v || (v.hidden && !isMedia(u))) fail(404, 'Vídeo não encontrado.');
+    .first<{ visibility: string; hidden: number; source: string }>();
+  if (!v || v.source === 'drive' || (v.hidden && !isMedia(u))) fail(404, 'Vídeo não encontrado.');
   if (v.visibility === 'members' && !isMember(u)) fail(isMember(u) ? 403 : 401, 'Este vídeo é só para membros.');
   return c.json({ video: v });
 });
@@ -254,46 +235,6 @@ videoRoutes.post('/youtube', async (c) => {
   await guardaCapa(c, capa, vis);
   await avisarVideoNovo(c, row!.id, title, vis, u.id);
   return c.json({ id: row!.id });
-});
-
-videoRoutes.post('/drive', async (c) => {
-  const u = needMedia(c);
-  const b = await body(c);
-  const id = driveFileId(reqStr(b.url, 400, 'o link do Google Drive'));
-  if (!id) fail(400, 'Não reconheci este link do Google Drive. No Drive: abra o vídeo → Compartilhar → Copiar link.');
-  const exists = await c.env.DB.prepare('SELECT id FROM videos WHERE drive_id = ?').bind(id).first<{ id: number }>();
-  if (exists) fail(409, 'Este vídeo do Drive já está no app.');
-  const titulo = reqStr(b.title, 200, 'o título');
-  const vis = b.visibility === 'members' ? 'members' : 'public';
-  const capa = await optionalMedia(c.env, b.poster_id, u, ['cover', 'poster']);
-  const row = await c.env.DB.prepare(
-    `INSERT INTO videos (source, drive_id, poster_id, title, description, category, speaker, visibility, vertical, published_at, created_by, created_at)
-     VALUES ('drive', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-  )
-    .bind(
-      id,
-      capa,
-      titulo,
-      str(b.description, 2000, { label: 'descrição' }),
-      str(b.category, 60, { label: 'categoria' }) ?? DEFAULT_CATEGORY,
-      str(b.speaker, 80, { label: 'pregador' }),
-      vis,
-      bool(b.vertical) ? 1 : 0,
-      now(),
-      u.id,
-      now(),
-    )
-    .first<{ id: number }>();
-  await guardaCapa(c, capa, vis);
-  await avisarVideoNovo(c, row!.id, titulo, vis, u.id);
-  const aberto = await driveAberto(id);
-  return c.json({
-    id: row!.id,
-    aviso:
-      aberto === false
-        ? 'O vídeo foi adicionado, mas o arquivo parece estar privado no Drive: abra o vídeo no Google Drive → Compartilhar → Acesso geral → "Qualquer pessoa com o link", senão ele não toca no app.'
-        : null,
-  });
 });
 
 videoRoutes.post('/upload', async (c) => {

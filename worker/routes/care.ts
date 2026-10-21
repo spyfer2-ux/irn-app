@@ -6,7 +6,6 @@ import {
   body,
   bool,
   clientIp,
-  driveFileId,
   fail,
   int,
   isLeader,
@@ -24,6 +23,7 @@ import {
   str,
 } from '../util';
 import { deleteMedia, optionalMedia, useMediaStmt } from '../storage';
+import { youtubeId } from './videos';
 import { notifyNow } from '../push';
 
 export const careRoutes = new Hono<AppEnv>();
@@ -192,16 +192,21 @@ careRoutes.post('/testemunhos', async (c) => {
   await rateLimit(c.env, `test:${u.id}`, 10, 3600_000);
   const b = await body(c);
   const image = await optionalMedia(c.env, b.image_id, u, ['cover', 'photo']);
-  const link = str(b.video_url, 400, { label: 'link do vídeo' });
-  const drive = link ? driveFileId(link) : null;
-  if (link && !drive) fail(400, 'Não reconheci este link do Google Drive. No Drive: abra o vídeo → Compartilhar → Copiar link.');
+  const link = str(b.video_url, 300, { label: 'link do vídeo' });
+  const video = link ? youtubeId(link) : null;
+  if (link && !video) fail(400, 'Não reconheci este link do YouTube. Copie o link pelo botão "Compartilhar" do vídeo.');
+  // Link de Short é vídeo em pé: o player fica na vertical.
+  const emPe = link && /\/shorts\//.test(link) ? 1 : 0;
   const stmts = [
-    c.env.DB.prepare('INSERT INTO testimonies (user_id, title, body, image_id, video_drive_id, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(
+    c.env.DB.prepare(
+      'INSERT INTO testimonies (user_id, title, body, image_id, video_youtube_id, video_vertical, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).bind(
       u.id,
       str(b.title, 120, { label: 'título' }),
       reqStr(b.body, 5000, 'o testemunho'),
       image,
-      drive,
+      video,
+      emPe,
       now(),
     ),
   ];
