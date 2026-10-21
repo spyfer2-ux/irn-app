@@ -497,7 +497,10 @@ const V5 = [
 // V6: vídeo hospedado no Google Drive (por link) nos vídeos e nos testemunhos.
 const V6 = ['ALTER TABLE videos ADD COLUMN drive_id TEXT', 'ALTER TABLE testimonies ADD COLUMN video_drive_id TEXT'];
 
-export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5, V6];
+// V7: vídeo em pé (vertical), para o player ocupar a tela como um Short.
+const V7 = ['ALTER TABLE videos ADD COLUMN vertical INTEGER NOT NULL DEFAULT 0'];
+
+export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5, V6, V7];
 
 let ready: Promise<void> | null = null;
 
