@@ -264,7 +264,6 @@ await check('admin: cria campanha', async () => {
 });
 await check('mídia: avisa que está ao vivo pelo YouTube', async () => {
   await a.goto(BASE + '/ao-vivo');
-  await a.getByRole('tab', { name: 'Pelo YouTube' }).click();
   await a.getByLabel('Título').fill('Culto de Sexta');
   await a.getByLabel('Link da live no YouTube (opcional)').fill('https://youtu.be/lkpfxNXXI3I');
   await a.getByRole('button', { name: 'Estamos ao vivo' }).click();
@@ -431,22 +430,6 @@ await check('mídia: encerra a live', async () => {
   await dialog(a).getByRole('button', { name: 'Encerrar' }).click();
   await toast(a, 'Live encerrada.');
   await a.getByText('Nenhuma transmissão agora').waitFor();
-});
-await check('mídia: tela de transmissão abre a câmera', async () => {
-  await a.goto(BASE + '/admin/config?aba=transmissao');
-  await a.getByLabel(/URL de transmissão/).fill('https://customer-teste.cloudflarestream.com/segredo123/webRTC/publish');
-  await a.getByLabel('URL de reprodução (WHEP)').fill('https://customer-teste.cloudflarestream.com/abc123/webRTC/play');
-  await a.getByRole('button', { name: 'Salvar' }).click();
-  await toast(a, 'Configuração salva.');
-  await a.goto(BASE + '/transmitir');
-  await a.waitForFunction(() => {
-    const vid = document.querySelector('.broadcast-stage video');
-    return vid && vid.videoWidth > 0;
-  });
-  await shot(a, '21-transmitir.png');
-  await a.getByRole('button', { name: 'Iniciar transmissão' }).click();
-  // a rede do teste não alcança a Cloudflare: o app tem que mostrar o erro com calma
-  await a.getByText(/Não consegui iniciar a transmissão|conexão com o servidor/).waitFor({ timeout: 20000 });
 });
 await check('visitante: mapa de navegação "Mais"', async () => {
   await v.goto(BASE + '/mais');
