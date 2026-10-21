@@ -45,7 +45,7 @@ adminRoutes.get('/resumo', async (c) => {
     q("SELECT COUNT(*) AS n FROM ministry_requests WHERE status = 'novo'"),
     q("SELECT COUNT(*) AS n FROM contributions WHERE status = 'informado'"),
     q('SELECT COUNT(*) AS n FROM photos'),
-    q('SELECT COUNT(*) AS n FROM videos WHERE hidden = 0'),
+    q("SELECT COUNT(*) AS n FROM videos WHERE hidden = 0 AND source != 'drive'"),
     q('SELECT COUNT(*) AS n FROM push_subs'),
     q('SELECT COALESCE(SUM(size), 0) AS n FROM media'),
   ]);

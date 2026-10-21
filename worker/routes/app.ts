@@ -56,8 +56,8 @@ appRoutes.get('/home', async (c) => {
       .bind(...vis, t),
     db
       .prepare(
-        `SELECT id, source, youtube_id, drive_id, poster_id, title, category, duration, published_at, created_at FROM videos
-         WHERE hidden = 0 AND visibility IN ${inVis} ORDER BY published_at DESC LIMIT 6`,
+        `SELECT id, source, youtube_id, poster_id, title, category, duration, published_at, created_at FROM videos
+         WHERE hidden = 0 AND source != 'drive' AND visibility IN ${inVis} ORDER BY published_at DESC LIMIT 6`,
       )
       .bind(...vis),
   ];
