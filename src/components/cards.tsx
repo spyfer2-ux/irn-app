@@ -6,6 +6,22 @@ import { downloadIcs, googleCalendarUrl, type CalItem } from '../lib/ics';
 import { isIos } from '../lib/push';
 import { MediaImg, mediaUrl } from './ui';
 
+/** Por quantos dias um vídeo recém-publicado aparece como novidade no app. */
+export const DIAS_NOVO = 3;
+
+/**
+ * Novidade: entrou no app nos últimos DIAS_NOVO dias E foi publicado nesse mesmo prazo.
+ * Vale a data mais antiga das duas, para um vídeo velho do canal não virar "novo" só porque
+ * a importação automática acabou de trazer ele.
+ */
+export function isVideoNovo(v: Pick<Video, 'created_at' | 'published_at'> | undefined | null): boolean {
+  if (!v) return false;
+  const entrou = v.created_at || v.published_at;
+  const publicado = v.published_at || v.created_at;
+  if (!entrou || !publicado) return false;
+  return Date.now() - Math.min(entrou, publicado) < DIAS_NOVO * 86400000;
+}
+
 export function videoThumb(v: Pick<Video, 'source' | 'youtube_id' | 'drive_id' | 'poster_id'>) {
   if (v.source === 'youtube' && v.youtube_id) return `https://i.ytimg.com/vi/${v.youtube_id}/hqdefault.jpg`;
   if (v.source === 'drive' && v.drive_id) return `https://drive.google.com/thumbnail?id=${v.drive_id}&sz=w640`;
@@ -13,7 +29,35 @@ export function videoThumb(v: Pick<Video, 'source' | 'youtube_id' | 'drive_id' |
   return '';
 }
 
-export function VideoCard({ v }: { v: Pick<Video, 'id' | 'source' | 'youtube_id' | 'drive_id' | 'poster_id' | 'title' | 'duration' | 'published_at' | 'category'> }) {
+type VideoBrief = Pick<
+  Video,
+  'id' | 'source' | 'youtube_id' | 'drive_id' | 'poster_id' | 'title' | 'duration' | 'published_at' | 'created_at' | 'category'
+>;
+
+/** Cartão grande do vídeo mais novo, para o topo da tela Vídeos e para o Início. */
+export function VideoHighlight({ v }: { v: VideoBrief }) {
+  const thumb = videoThumb(v);
+  return (
+    <Link to={`/videos/${v.id}`} className="card video-highlight">
+      <div className="thumb">
+        {thumb ? <img src={thumb} alt="" referrerPolicy="no-referrer" /> : null}
+        <div className="play">
+          <span>
+            <Play size={24} fill="currentColor" />
+          </span>
+        </div>
+        {v.duration ? <span className="dur">{duration(v.duration)}</span> : null}
+      </div>
+      <div className="card-pad">
+        <div className="kicker">Novo vídeo publicado</div>
+        <h3>{v.title}</h3>
+        <div className="small muted mt-1">{[v.category, ago(v.published_at)].filter(Boolean).join(' · ')}</div>
+      </div>
+    </Link>
+  );
+}
+
+export function VideoCard({ v }: { v: VideoBrief }) {
   const thumb = videoThumb(v);
   return (
     <Link to={`/videos/${v.id}`} className="video-card">
@@ -24,6 +68,7 @@ export function VideoCard({ v }: { v: Pick<Video, 'id' | 'source' | 'youtube_id'
             <Play size={20} fill="currentColor" />
           </span>
         </div>
+        {isVideoNovo(v) && <span className="novo">Novo</span>}
         {v.duration ? <span className="dur">{duration(v.duration)}</span> : null}
       </div>
       <div className="vt clamp-2">{v.title}</div>
