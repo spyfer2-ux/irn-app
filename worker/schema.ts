@@ -494,7 +494,10 @@ const V5 = [
   ...chosenSeedInserts(),
 ];
 
-export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5];
+// V6: vídeo hospedado no Google Drive (por link) nos vídeos e nos testemunhos.
+const V6 = ['ALTER TABLE videos ADD COLUMN drive_id TEXT', 'ALTER TABLE testimonies ADD COLUMN video_drive_id TEXT'];
+
+export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5, V6];
 
 let ready: Promise<void> | null = null;
 

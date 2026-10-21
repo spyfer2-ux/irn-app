@@ -329,3 +329,21 @@ export function auditLog(c: Ctx, userId: number | null, action: string, detail =
     now(),
   );
 }
+
+/** Lê o identificador do arquivo num link do Google Drive (ou aceita o próprio identificador). */
+export function driveFileId(input: string): string | null {
+  const s = input.trim();
+  const isId = (v: string | null | undefined) => (v && /^[A-Za-z0-9_-]{20,72}$/.test(v) ? v : null);
+  if (isId(s)) return s;
+  let u: URL;
+  try {
+    u = new URL(s.startsWith('http') ? s : `https://${s}`);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^www\./, '');
+  if (host !== 'drive.google.com' && host !== 'docs.google.com' && host !== 'drive.usercontent.google.com') return null;
+  const m = u.pathname.match(/\/d\/([A-Za-z0-9_-]{20,72})/);
+  if (m) return m[1];
+  return isId(u.searchParams.get('id'));
+}
