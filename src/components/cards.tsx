@@ -28,16 +28,34 @@ export function driveThumb(id: string, largura = 960) {
   return `https://drive.google.com/thumbnail?id=${id}&sz=w${largura}`;
 }
 
-/**
- * Vídeo guardado no Google Drive: mostra a capa e só carrega o player do Drive quando
- * a pessoa toca em play. Se nem a capa carrega, o arquivo está privado — e aí explica o que fazer.
- */
-export function DriveVideo({ id, title, posterId, full }: { id: string; title?: string | null; posterId?: string | null; full?: boolean }) {
-  const [tocando, setTocando] = useState(false);
-  const [semCapa, setSemCapa] = useState(false);
-  const classe = `player${full ? ' player-full' : ''}`;
+/** Endereço que entrega o arquivo do Drive direto, sem login, e aceita avançar o vídeo. */
+export function driveFileUrl(id: string) {
+  return `https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`;
+}
 
-  if (tocando) {
+/**
+ * Vídeo guardado no Google Drive. Toca no player do próprio celular, como o YouTube:
+ * nada de quadro do Drive, nada de pedir login. Se o Google não entregar o arquivo
+ * (cota do dia, formato que o aparelho não abre), cai no quadro do Drive como plano B.
+ */
+export function DriveVideo({
+  id,
+  title,
+  posterId,
+  full,
+  vertical,
+}: {
+  id: string;
+  title?: string | null;
+  posterId?: string | null;
+  full?: boolean;
+  vertical?: boolean;
+}) {
+  const [semArquivo, setSemArquivo] = useState(false);
+  const [emPe, setEmPe] = useState(!!vertical);
+  const classe = `player${full ? ' player-full' : ''}${emPe ? ' vertical' : ''}`;
+
+  if (semArquivo) {
     return (
       <div className={classe}>
         <iframe
@@ -52,25 +70,28 @@ export function DriveVideo({ id, title, posterId, full }: { id: string; title?: 
   }
 
   return (
-    <button type="button" className={`${classe} drive-capa`} onClick={() => setTocando(true)} aria-label={`Assistir ${title || 'o vídeo'}`}>
-      {posterId ? (
-        <MediaImg id={posterId} />
-      ) : semCapa ? null : (
-        <img src={driveThumb(id)} alt="" referrerPolicy="no-referrer" onError={() => setSemCapa(true)} />
-      )}
-      <span className="play">
-        <span>
-          <Play size={26} fill="currentColor" />
-        </span>
-      </span>
-    </button>
+    <div className={classe}>
+      <video
+        src={driveFileUrl(id)}
+        poster={posterId ? mediaUrl(posterId) : driveThumb(id)}
+        controls
+        playsInline
+        preload="metadata"
+        onLoadedMetadata={(e) => {
+          // O próprio arquivo diz se é em pé.
+          const el = e.currentTarget;
+          if (el.videoHeight > el.videoWidth) setEmPe(true);
+        }}
+        onError={() => setSemArquivo(true)}
+      />
+    </div>
   );
 }
 
 export function videoThumb(v: Pick<Video, 'source' | 'youtube_id' | 'drive_id' | 'poster_id'>) {
+  if (v.poster_id) return mediaUrl(v.poster_id);
   if (v.source === 'youtube' && v.youtube_id) return `https://i.ytimg.com/vi/${v.youtube_id}/hqdefault.jpg`;
   if (v.source === 'drive' && v.drive_id) return driveThumb(v.drive_id, 640);
-  if (v.poster_id) return mediaUrl(v.poster_id);
   return '';
 }
 
