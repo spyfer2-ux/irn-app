@@ -25,7 +25,7 @@ import {
   toastError,
   useAction,
 } from '../components/ui';
-import { DriveVideo, isVideoNovo, VideoCard, VideoHighlight } from '../components/cards';
+import { isVideoNovo, VideoCard, VideoHighlight } from '../components/cards';
 
 const CATEGORIES = ['Cultos e pregações', 'Louvor', 'Rede Jovem', 'Testemunhos', 'Estudos', 'Eventos', 'Avisos', 'Vídeos curtos'];
 
@@ -132,7 +132,7 @@ export default function Videos() {
           <Empty
             icon={<Film />}
             title="Nenhum vídeo aqui ainda"
-            text={isMedia ? 'Adicione um link do YouTube ou do Google Drive, ou envie um vídeo curto.' : 'Volte em breve!'}
+            text={isMedia ? 'Adicione um link do YouTube ou envie um vídeo curto.' : 'Volte em breve!'}
           />
         )}
         {next && (
@@ -331,23 +331,19 @@ export function VideoDetail() {
       {error && <ErrorBox error={error} retry={reload} />}
       {v && (
         <div className="stack">
-          {v.source === 'drive' ? (
-            <DriveVideo id={v.drive_id!} title={v.title} posterId={v.poster_id} full vertical={!!v.vertical} />
-          ) : (
-            <div className={`player player-full${v.vertical ? ' vertical' : ''}`}>
-              {v.source === 'youtube' ? (
-                <iframe
-                  src={`https://www.youtube.com/embed/${v.youtube_id}?playsinline=1&rel=0`}
-                  title={v.title}
-                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
-              ) : (
-                <video src={mediaUrl(v.media_id!)} poster={v.poster_id ? mediaUrl(v.poster_id) : undefined} controls playsInline preload="metadata" />
-              )}
-            </div>
-          )}
+          <div className={`player player-full${v.vertical ? ' vertical' : ''}`}>
+            {v.source === 'youtube' ? (
+              <iframe
+                src={`https://www.youtube.com/embed/${v.youtube_id}?playsinline=1&rel=0`}
+                title={v.title}
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            ) : (
+              <video src={mediaUrl(v.media_id!)} poster={v.poster_id ? mediaUrl(v.poster_id) : undefined} controls playsInline preload="metadata" />
+            )}
+          </div>
           <div>
             <h2 style={{ fontSize: 20 }}>{v.title}</h2>
             <div className="small muted mt-1">
@@ -362,25 +358,10 @@ export function VideoDetail() {
               ) : null}
             </div>
           </div>
-          {v.source === 'drive' && (
-            <p className="tiny muted">
-              Não abriu o vídeo? No Google Drive o arquivo precisa estar em Compartilhar → Acesso geral → "Qualquer pessoa com o link".
-            </p>
-          )}
-          {v.source === 'drive' && (
-            <p className="tiny muted">
-              Não abriu o vídeo? No Google Drive o arquivo precisa estar em Compartilhar → Acesso geral → "Qualquer pessoa com o link".
-            </p>
-          )}
           {v.description && <p className="pre" style={{ color: 'var(--ink-2)' }}>{v.description}</p>}
           {v.source === 'upload' && (
             <a className="btn btn-secondary" href={`${mediaUrl(v.media_id!)}?baixar=1`}>
               Baixar vídeo
-            </a>
-          )}
-          {v.source === 'drive' && v.drive_id && (
-            <a className="btn btn-secondary" href={`https://drive.google.com/file/d/${v.drive_id}/view`} target="_blank" rel="noreferrer">
-              Abrir no Google Drive
             </a>
           )}
           {isMedia && (
@@ -393,11 +374,7 @@ export function VideoDetail() {
                 icon={<Trash2 />}
                 onClick={async () => {
                   if (!(await confirmDialog({ title: 'Apagar este vídeo do app?', text:
-                      v.source === 'youtube'
-                        ? 'O vídeo continua no YouTube.'
-                        : v.source === 'drive'
-                          ? 'O arquivo continua no Google Drive.'
-                          : 'O arquivo será apagado.', confirmLabel: 'Apagar', danger: true }))) return;
+                      v.source === 'youtube' ? 'O vídeo continua no YouTube.' : 'O arquivo será apagado.', confirmLabel: 'Apagar', danger: true }))) return;
                   try {
                     await api(`/videos/${v.id}`, { method: 'DELETE' });
                     toast('Vídeo apagado.', 'ok');

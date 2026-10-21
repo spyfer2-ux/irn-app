@@ -6,7 +6,6 @@ import { useSession } from '../lib/session';
 import { api, useApi } from '../lib/api';
 import type { Prayer, Testimony } from '../lib/types';
 import { ago } from '../lib/format';
-import { DriveVideo } from '../components/cards';
 import {
   Avatar,
   Button,
@@ -332,9 +331,17 @@ function TestimoniesInner() {
         ) : data?.testimonies.length ? (
           data.testimonies.map((t) => (
             <article key={t.id} className="card" style={{ overflow: 'hidden' }}>
-              {/* Com vídeo, a foto vira a capa dele: uma mídia só no testemunho. */}
-              {t.video_drive_id ? (
-                <DriveVideo id={t.video_drive_id} title={t.title} posterId={t.image_id} />
+              {/* Com vídeo, o vídeo é a mídia do testemunho; sem ele, vale a foto. */}
+              {t.video_youtube_id ? (
+                <div className={`player${t.video_vertical ? ' vertical' : ''}`}>
+                  <iframe
+                    src={`https://www.youtube.com/embed/${t.video_youtube_id}?playsinline=1&rel=0`}
+                    title={t.title ?? 'Vídeo do testemunho'}
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                </div>
               ) : (
                 t.image_id && <MediaImg id={t.image_id} className="cover" style={{ borderRadius: 0 }} />
               )}
@@ -432,12 +439,12 @@ function TestimonySheet({ onClose, onDone }: { onClose: () => void; onDone: () =
         <TextField label="Seu testemunho" value={body} onChange={setBody} multiline rows={7} maxLength={5000} />
         <CoverPicker value={image} onChange={setImage} access="members" label="Foto (opcional)" />
         <TextField
-          label="Vídeo do Google Drive (opcional)"
+          label="Vídeo do YouTube (opcional)"
           value={video}
           onChange={setVideo}
           inputMode="url"
-          placeholder="https://drive.google.com/file/d/…"
-          hint={'No Drive: abra o vídeo → Compartilhar → em "Acesso geral" escolha "Qualquer pessoa com o link" → Copiar link.'}
+          placeholder="https://youtu.be/…"
+          hint="Suba o vídeo no canal da igreja e cole o link aqui. Link de Short entra com o player em pé."
         />
         <p className="tiny muted">A liderança lê antes de publicar para a igreja.</p>
       </div>
