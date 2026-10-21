@@ -64,7 +64,6 @@ export const DEFAULT_GIVING = {
 };
 export type Giving = typeof DEFAULT_GIVING;
 
-export const DEFAULT_STREAM = { whip_url: '', whep_url: '' };
 export const DEFAULT_YOUTUBE = { auto_import: true, last_sync: 0, last_result: '' };
 export const DEFAULT_REMINDERS = {
   cult_minutes_before: 60,
@@ -96,7 +95,6 @@ const DEFAULTS = {
   church: DEFAULT_CHURCH,
   schedule: DEFAULT_SCHEDULE,
   giving: DEFAULT_GIVING,
-  stream: DEFAULT_STREAM,
   youtube: DEFAULT_YOUTUBE,
   reminders: DEFAULT_REMINDERS,
   live: DEFAULT_LIVE,
