@@ -102,6 +102,7 @@ export interface Video {
   duration: number | null;
   visibility: Visibility;
   hidden: number;
+  vertical: number;
   published_at: number;
   created_at: number;
 }
