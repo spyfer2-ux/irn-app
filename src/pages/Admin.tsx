@@ -101,7 +101,6 @@ function AdminHomeInner() {
         { ok: !!giving.data?.configured, label: 'Chave PIX e conta para dízimos', to: '/admin/config?aba=dizimos' },
         { ok: !!church.logo_id, label: 'Logo oficial da igreja', to: '/admin/config?aba=igreja' },
         { ok: features.video_upload, label: 'Armazenamento R2 (vídeos pelo app)', to: '/admin/config?aba=armazenamento' },
-        { ok: features.stream_ready, label: 'Transmissão pela câmera do app', to: '/admin/config?aba=transmissao' },
       ]
     : [];
   return (
@@ -1132,7 +1131,6 @@ interface Config {
   church: Church;
   schedule: ScheduleItem[];
   giving: Record<string, unknown> & { types: string[] };
-  stream: { whip_url: string; whep_url: string };
   youtube: { auto_import: boolean; last_sync: number; last_result: string };
   reminders: { cult_minutes_before: number; event_minutes_before: number; word_hour: number; birthdays_to_leaders: boolean };
   storage_mode: 'r2' | 'd1';
@@ -1166,7 +1164,6 @@ function AdminConfigInner() {
             { value: 'igreja', label: 'Igreja' },
             { value: 'horarios', label: 'Horários' },
             { value: 'dizimos', label: 'Dízimos' },
-            { value: 'transmissao', label: 'Transmissão' },
             { value: 'youtube', label: 'YouTube' },
             { value: 'lembretes', label: 'Lembretes' },
             { value: 'armazenamento', label: 'Armazenamento' },
@@ -1182,8 +1179,6 @@ function AdminConfigInner() {
           <ScheduleForm items={data.schedule} onSaved={saved} />
         ) : tab === 'dizimos' ? (
           <GivingForm g={data.giving} onSaved={saved} />
-        ) : tab === 'transmissao' ? (
-          <StreamForm s={data.stream} onSaved={saved} />
         ) : tab === 'youtube' ? (
           <YoutubeForm cfg={data} onSaved={saved} />
         ) : tab === 'lembretes' ? (
@@ -1430,33 +1425,6 @@ function GivingForm({ g, onSaved }: { g: Config['giving']; onSaved: () => void }
       >
         Salvar dados de contribuição
       </Button>
-    </div>
-  );
-}
-
-function StreamForm({ s, onSaved }: { s: Config['stream']; onSaved: () => void }) {
-  const [whip, setWhip] = useState(s.whip_url);
-  const [whep, setWhep] = useState(s.whep_url);
-  const { busy, save } = useConfigSave('stream', onSaved);
-  return (
-    <div className="stack">
-      <div className="card card-pad stack small" style={{ color: 'var(--ink-2)' }}>
-        <div style={{ fontWeight: 650, color: 'var(--ink)' }}>Transmitir pela câmera do app (Cloudflare Stream)</div>
-        <p>Assim a equipe de mídia faz a live direto do celular, sem passar pelo YouTube. A Cloudflare cobra por minuto assistido (cerca de US$ 1 a cada 1.000 minutos) e a live não fica gravada.</p>
-        <ol style={{ margin: 0, paddingLeft: 18 }}>
-          <li>No painel da Cloudflare, abra Stream (assine o plano, se pedir).</li>
-          <li>Vá em Live inputs → Create live input. Dê o nome "IRN".</li>
-          <li>Abra a live input criada. Na aba WebRTC, copie a URL de Broadcast (WHIP) e a URL de Playback (WHEP).</li>
-          <li>Cole as duas abaixo e salve. Pronto: aparece "Câmera do app" na tela Ao vivo.</li>
-        </ol>
-      </div>
-      <div className="card card-pad stack">
-        <TextField label="URL de transmissão (WHIP) — secreta" value={whip} onChange={setWhip} placeholder="https://customer-….cloudflarestream.com/…/webRTC/publish" hint="Quem tem esta URL consegue transmitir. Só a equipe de mídia recebe." />
-        <TextField label="URL de reprodução (WHEP)" value={whep} onChange={setWhep} placeholder="https://customer-….cloudflarestream.com/…/webRTC/play" />
-        <Button loading={busy} onClick={() => void save({ whip_url: whip, whep_url: whep })}>
-          Salvar
-        </Button>
-      </div>
     </div>
   );
 }
