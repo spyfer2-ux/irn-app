@@ -367,26 +367,25 @@ await check('membro: pede para participar de uma célula', async () => {
   await toast(m, 'Pedido enviado!');
   await shot(m, '17-grupos.png');
 });
-await check('membro: envia testemunho com vídeo do Drive e a liderança publica', async () => {
+await check('membro: envia testemunho com vídeo do YouTube e a liderança publica', async () => {
   await m.goto(BASE + '/testemunhos');
   await m.getByRole('button', { name: 'Contar' }).click();
   await dialog(m).getByLabel('Título (opcional)').fill('Deus abriu uma porta de emprego');
   await dialog(m).getByLabel('Seu testemunho').fill('Depois de meses procurando, fui contratada nesta semana. Glória a Deus!');
-  await dialog(m).getByLabel(/Vídeo do Google Drive/).fill('https://drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/view?usp=sharing');
+  await dialog(m).getByLabel(/Vídeo do YouTube/).fill('https://www.youtube.com/shorts/rUtE1234567');
   await dialog(m).getByRole('button', { name: 'Enviar para publicação' }).click();
   await toast(m, 'Enviado!');
   await a.goto(BASE + '/testemunhos?status=pendente');
   await a.getByRole('button', { name: 'Publicar' }).click();
   await toast(a, 'Testemunho publicado.');
 });
-await check('visitante: vê o testemunho publicado e o vídeo do Drive, sem login', async () => {
+await check('visitante: vê o testemunho publicado e o vídeo, sem login', async () => {
   await v.goto(BASE + '/testemunhos');
   await v.getByText('Deus abriu uma porta de emprego').waitFor();
-  // Com foto e vídeo, o testemunho mostra uma mídia só: a foto vira a capa do vídeo.
-  if (await v.locator('.cover').count()) throw new Error('o testemunho mostrou a foto e o vídeo separados');
-  const src = await v.locator('.player video, .player iframe').first().getAttribute('src');
-  if (!src || !src.includes('1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv'))
-    throw new Error('o vídeo do Drive não entrou no player do testemunho: ' + src);
+  // O vídeo é a mídia do testemunho, e link de Short deixa o player em pé.
+  const src = await v.locator('.player.vertical iframe').first().getAttribute('src');
+  if (!src || !src.includes('youtube.com/embed/rUtE1234567'))
+    throw new Error('o vídeo do testemunho não entrou no player: ' + src);
   if (await v.getByRole('button', { name: 'Contar' }).count()) throw new Error('visitante não deveria poder contar testemunho');
   await shot(v, '17b-testemunhos.png');
 });

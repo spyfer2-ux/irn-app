@@ -11,7 +11,7 @@ import { encryptPayload, vapidHeader, type Vapid } from '../worker/push';
 import { verifyIdToken } from '../worker/auth';
 import { parseAmount } from '../worker/routes/giving';
 import { youtubeId } from '../worker/routes/videos';
-import { driveFileId, nextCults, spParts, spToMs, b64urlToBytes, bytesToB64url } from '../worker/util';
+import { nextCults, spParts, spToMs, b64urlToBytes, bytesToB64url } from '../worker/util';
 import { crc16, pixPayload } from '../src/lib/pix';
 import type { Env } from '../worker/types';
 
@@ -178,18 +178,6 @@ test('YouTube: reconhece os formatos de link', () => {
   assert.equal(youtubeId('lkpfxNXXI3I'), 'lkpfxNXXI3I');
   assert.equal(youtubeId('https://vimeo.com/123'), null);
   assert.equal(youtubeId('não é link'), null);
-});
-
-test('Google Drive: reconhece os formatos de link do vídeo', () => {
-  assert.equal(driveFileId('https://drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/view?usp=sharing'), '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv');
-  assert.equal(driveFileId('https://drive.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/preview'), '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv');
-  assert.equal(driveFileId('https://drive.google.com/open?id=1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv'), '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv');
-  assert.equal(driveFileId('https://drive.google.com/uc?export=download&id=1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv'), '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv');
-  assert.equal(driveFileId('https://docs.google.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/edit'), '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv');
-  assert.equal(driveFileId('  1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv  '), '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv');
-  assert.equal(driveFileId('https://drive.evil.com/file/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv/view'), null);
-  assert.equal(driveFileId('https://youtu.be/lkpfxNXXI3I'), null);
-  assert.equal(driveFileId('não é link'), null);
 });
 
 test('base64url ida e volta', () => {
