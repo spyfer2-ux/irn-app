@@ -500,7 +500,13 @@ const V6 = ['ALTER TABLE videos ADD COLUMN drive_id TEXT', 'ALTER TABLE testimon
 // V7: vídeo em pé (vertical), para o player ocupar a tela como um Short.
 const V7 = ['ALTER TABLE videos ADD COLUMN vertical INTEGER NOT NULL DEFAULT 0'];
 
-export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5, V6, V7];
+// V8: testemunho com vídeo do YouTube (o do Drive saiu do app).
+const V8 = [
+  'ALTER TABLE testimonies ADD COLUMN video_youtube_id TEXT',
+  'ALTER TABLE testimonies ADD COLUMN video_vertical INTEGER NOT NULL DEFAULT 0',
+];
+
+export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5, V6, V7, V8];
 
 let ready: Promise<void> | null = null;
 
