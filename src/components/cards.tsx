@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarPlus, ExternalLink, MapPin, Pin, Play } from 'lucide-react';
 import type { Church, Cult, EventItem, Notice, Video } from '../lib/types';
@@ -23,82 +22,13 @@ export function isVideoNovo(v: Pick<Video, 'created_at' | 'published_at'> | unde
   return Date.now() - Math.min(entrou, publicado) < DIAS_NOVO * 86400000;
 }
 
-/** Capa que o próprio Google Drive gera para o arquivo. */
-export function driveThumb(id: string, largura = 960) {
-  return `https://drive.google.com/thumbnail?id=${id}&sz=w${largura}`;
-}
-
-/** Endereço que entrega o arquivo do Drive direto, sem login, e aceita avançar o vídeo. */
-export function driveFileUrl(id: string) {
-  return `https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`;
-}
-
-/**
- * Vídeo guardado no Google Drive. Toca no player do próprio celular, como o YouTube:
- * nada de quadro do Drive, nada de pedir login. Se o Google não entregar o arquivo
- * (cota do dia, formato que o aparelho não abre), cai no quadro do Drive como plano B.
- */
-export function DriveVideo({
-  id,
-  title,
-  posterId,
-  full,
-  vertical,
-}: {
-  id: string;
-  title?: string | null;
-  posterId?: string | null;
-  full?: boolean;
-  vertical?: boolean;
-}) {
-  const [semArquivo, setSemArquivo] = useState(false);
-  const [emPe, setEmPe] = useState(!!vertical);
-  const classe = `player${full ? ' player-full' : ''}${emPe ? ' vertical' : ''}`;
-
-  if (semArquivo) {
-    return (
-      <div className={classe}>
-        <iframe
-          src={`https://drive.google.com/file/d/${id}/preview`}
-          title={title || 'Vídeo'}
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className={classe}>
-      <video
-        src={driveFileUrl(id)}
-        poster={posterId ? mediaUrl(posterId) : driveThumb(id)}
-        controls
-        playsInline
-        preload="metadata"
-        onLoadedMetadata={(e) => {
-          // O próprio arquivo diz se é em pé.
-          const el = e.currentTarget;
-          if (el.videoHeight > el.videoWidth) setEmPe(true);
-        }}
-        onError={() => setSemArquivo(true)}
-      />
-    </div>
-  );
-}
-
-export function videoThumb(v: Pick<Video, 'source' | 'youtube_id' | 'drive_id' | 'poster_id'>) {
+export function videoThumb(v: Pick<Video, 'source' | 'youtube_id' | 'poster_id'>) {
   if (v.poster_id) return mediaUrl(v.poster_id);
   if (v.source === 'youtube' && v.youtube_id) return `https://i.ytimg.com/vi/${v.youtube_id}/hqdefault.jpg`;
-  if (v.source === 'drive' && v.drive_id) return driveThumb(v.drive_id, 640);
   return '';
 }
 
-type VideoBrief = Pick<
-  Video,
-  'id' | 'source' | 'youtube_id' | 'drive_id' | 'poster_id' | 'title' | 'duration' | 'published_at' | 'created_at' | 'category'
->;
+type VideoBrief = Pick<Video, 'id' | 'source' | 'youtube_id' | 'poster_id' | 'title' | 'duration' | 'published_at' | 'created_at' | 'category'>;
 
 /** Cartão grande do vídeo mais novo, para o topo da tela Vídeos e para o Início. */
 export function VideoHighlight({ v }: { v: VideoBrief }) {
