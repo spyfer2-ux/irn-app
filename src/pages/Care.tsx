@@ -6,6 +6,7 @@ import { useSession } from '../lib/session';
 import { api, useApi } from '../lib/api';
 import type { Prayer, Testimony } from '../lib/types';
 import { ago } from '../lib/format';
+import { DriveVideo } from '../components/cards';
 import {
   Avatar,
   Button,
@@ -331,17 +332,11 @@ function TestimoniesInner() {
         ) : data?.testimonies.length ? (
           data.testimonies.map((t) => (
             <article key={t.id} className="card" style={{ overflow: 'hidden' }}>
-              {t.image_id && <MediaImg id={t.image_id} className="cover" style={{ borderRadius: 0 }} />}
-              {t.video_drive_id && (
-                <div className="player">
-                  <iframe
-                    src={`https://drive.google.com/file/d/${t.video_drive_id}/preview`}
-                    title={t.title ?? 'Vídeo do testemunho'}
-                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                    allowFullScreen
-                    referrerPolicy="strict-origin-when-cross-origin"
-                  />
-                </div>
+              {/* Com vídeo, a foto vira a capa dele: uma mídia só no testemunho. */}
+              {t.video_drive_id ? (
+                <DriveVideo id={t.video_drive_id} title={t.title} posterId={t.image_id} />
+              ) : (
+                t.image_id && <MediaImg id={t.image_id} className="cover" style={{ borderRadius: 0 }} />
               )}
               <div className="card-pad stack" style={{ gap: 10 }}>
                 <div className="row">

@@ -11,6 +11,7 @@ import {
   Button,
   Chips,
   confirmDialog,
+  CoverPicker,
   Empty,
   ErrorBox,
   LoadingList,
@@ -24,7 +25,7 @@ import {
   toastError,
   useAction,
 } from '../components/ui';
-import { isVideoNovo, VideoCard, VideoHighlight } from '../components/cards';
+import { DriveVideo, isVideoNovo, VideoCard, VideoHighlight } from '../components/cards';
 
 const CATEGORIES = ['Cultos e pregações', 'Louvor', 'Rede Jovem', 'Testemunhos', 'Estudos', 'Eventos', 'Avisos', 'Vídeos curtos'];
 
@@ -156,6 +157,8 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
   const [speaker, setSpeaker] = useState('');
   const [desc, setDesc] = useState('');
   const [isPublic, setIsPublic] = useState(true);
+  const [capa, setCapa] = useState<string | null>(null);
+  const [emPe, setEmPe] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -172,7 +175,7 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
       if (mode === 'youtube') {
         const r = await api<{ id: number }>('/videos/youtube', {
           method: 'POST',
-          body: { url, title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members' },
+          body: { url, title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', poster_id: capa, vertical: emPe },
         });
         toast('Vídeo adicionado!', 'ok');
         onDone();
@@ -182,7 +185,7 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
         if (!title.trim()) throw new Error('Dê um título ao vídeo.');
         const r = await api<{ id: number; aviso?: string | null }>('/videos/drive', {
           method: 'POST',
-          body: { url, title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members' },
+          body: { url, title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', poster_id: capa, vertical: emPe },
         });
         toast(r.aviso || 'Vídeo do Drive adicionado!', r.aviso ? 'error' : 'ok');
         onDone();
@@ -299,11 +302,27 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
               </div>
             )}
             <TextField label={mode === 'youtube' ? 'Título (deixe vazio para usar o do YouTube)' : 'Título'} value={title} onChange={setTitle} maxLength={200} />
+            {mode !== 'upload' && (
+              <CoverPicker
+                value={capa}
+                onChange={setCapa}
+                access={isPublic ? 'public' : 'members'}
+                label="Capa do vídeo (opcional)"
+              />
+            )}
             <div className="form-grid collapse">
               <SelectField label="Categoria" value={category} onChange={setCategory} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
               <TextField label="Pregador (opcional)" value={speaker} onChange={setSpeaker} maxLength={80} />
             </div>
             <TextField label="Descrição (opcional)" value={desc} onChange={setDesc} multiline rows={3} maxLength={2000} />
+            {mode !== 'upload' && (
+              <Toggle
+                label="Vídeo em pé"
+                hint="Para vídeo gravado na vertical (Shorts e celular): o player fica em pé e ocupa a tela. Link de Short já vem marcado."
+                checked={emPe}
+                onChange={setEmPe}
+              />
+            )}
             <Toggle label="Público" hint={isPublic ? 'Visitantes também veem.' : 'Só membros aprovados veem.'} checked={isPublic} onChange={setIsPublic} />
           </>
         )}
@@ -342,27 +361,23 @@ export function VideoDetail() {
       {error && <ErrorBox error={error} retry={reload} />}
       {v && (
         <div className="stack">
-          <div className="player player-full">
-            {v.source === 'youtube' ? (
-              <iframe
-                src={`https://www.youtube.com/embed/${v.youtube_id}?playsinline=1&rel=0`}
-                title={v.title}
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            ) : v.source === 'drive' ? (
-              <iframe
-                src={`https://drive.google.com/file/d/${v.drive_id}/preview`}
-                title={v.title}
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            ) : (
-              <video src={mediaUrl(v.media_id!)} poster={v.poster_id ? mediaUrl(v.poster_id) : undefined} controls playsInline preload="metadata" />
-            )}
-          </div>
+          {v.source === 'drive' ? (
+            <DriveVideo id={v.drive_id!} title={v.title} posterId={v.poster_id} full vertical={!!v.vertical} />
+          ) : (
+            <div className={`player player-full${v.vertical ? ' vertical' : ''}`}>
+              {v.source === 'youtube' ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${v.youtube_id}?playsinline=1&rel=0`}
+                  title={v.title}
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              ) : (
+                <video src={mediaUrl(v.media_id!)} poster={v.poster_id ? mediaUrl(v.poster_id) : undefined} controls playsInline preload="metadata" />
+              )}
+            </div>
+          )}
           <div>
             <h2 style={{ fontSize: 20 }}>{v.title}</h2>
             <div className="small muted mt-1">
@@ -377,6 +392,11 @@ export function VideoDetail() {
               ) : null}
             </div>
           </div>
+          {v.source === 'drive' && (
+            <p className="tiny muted">
+              Não abriu o vídeo? No Google Drive o arquivo precisa estar em Compartilhar → Acesso geral → "Qualquer pessoa com o link".
+            </p>
+          )}
           {v.source === 'drive' && (
             <p className="tiny muted">
               Não abriu o vídeo? No Google Drive o arquivo precisa estar em Compartilhar → Acesso geral → "Qualquer pessoa com o link".
@@ -436,6 +456,8 @@ function EditVideoSheet({ v, onClose, onDone }: { v: Video; onClose: () => void;
   const [desc, setDesc] = useState(v.description ?? '');
   const [isPublic, setIsPublic] = useState(v.visibility === 'public');
   const [hidden, setHidden] = useState(!!v.hidden);
+  const [capa, setCapa] = useState<string | null>(v.poster_id);
+  const [emPe, setEmPe] = useState(!!v.vertical);
   const { busy, run } = useAction();
   const cats = CATEGORIES.includes(category) ? CATEGORIES : [category, ...CATEGORIES];
   return (
@@ -451,7 +473,7 @@ function EditVideoSheet({ v, onClose, onDone }: { v: Video; onClose: () => void;
             void run(async () => {
               await api(`/videos/${v.id}`, {
                 method: 'PUT',
-                body: { title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', hidden },
+                body: { title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', hidden, poster_id: capa, vertical: emPe },
               });
               onDone();
               onClose();
@@ -467,6 +489,10 @@ function EditVideoSheet({ v, onClose, onDone }: { v: Video; onClose: () => void;
         <SelectField label="Categoria" value={category} onChange={setCategory} options={cats.map((c) => ({ value: c, label: c }))} />
         <TextField label="Pregador" value={speaker} onChange={setSpeaker} maxLength={80} />
         <TextField label="Descrição" value={desc} onChange={setDesc} multiline rows={4} maxLength={2000} />
+        {v.source !== 'upload' && (
+          <CoverPicker value={capa} onChange={setCapa} access={isPublic ? 'public' : 'members'} label="Capa do vídeo" />
+        )}
+        <Toggle label="Vídeo em pé" hint="Player em pé, ocupando a tela — para vídeo gravado na vertical." checked={emPe} onChange={setEmPe} />
         <Toggle label="Público" hint={isPublic ? 'Visitantes também veem.' : 'Só membros aprovados veem.'} checked={isPublic} onChange={setIsPublic} />
         <Toggle label="Ocultar do app" hint="Some da lista, mas não é apagado." checked={hidden} onChange={setHidden} />
       </div>
