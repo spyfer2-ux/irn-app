@@ -1,12 +1,47 @@
 import { Hono } from 'hono';
-import type { AppEnv, Env } from '../types';
-import { auditLog, body, bool, driveFileId, fail, int, isMedia, isMember, needMedia, now, oneOf, reqStr, str, visibleSet } from '../util';
+import type { AppEnv, Ctx, Env } from '../types';
+import { auditLog, body, bool, driveFileId, fail, int, isMedia, isMember, needMedia, now, oneOf, originOf, reqStr, str, visibleSet } from '../util';
+import { drain, notify, notifyNow } from '../push';
 import { claimMedia, deleteMedia, optionalMedia, useMediaStmt } from '../storage';
 import { getSetting, setSetting } from '../settings';
 
 export const videoRoutes = new Hono<AppEnv>();
 
 export const DEFAULT_CATEGORY = 'Cultos e pregações';
+
+const wait = (c: Ctx) => (p: Promise<unknown>) => c.executionCtx.waitUntil(p);
+
+/**
+ * Confere se o arquivo do Drive está aberto para quem tem o link. Não trava o cadastro:
+ * devolve null quando o Google não deixa claro, para nunca barrar um vídeo bom.
+ */
+async function driveAberto(id: string): Promise<boolean | null> {
+  try {
+    const res = await fetch(`https://drive.google.com/file/d/${id}/view`, {
+      redirect: 'manual',
+      headers: { 'user-agent': 'Mozilla/5.0 (app IRN)' },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (res.status === 200) return true;
+    if (res.status === 403 || res.status === 404) return false;
+    if ((res.headers.get('location') ?? '').includes('accounts.google.com')) return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Avisa a igreja que entrou vídeo novo (vale para link do YouTube, link do Drive e envio pelo app). */
+function avisarVideoNovo(c: Ctx, id: number, title: string, visibility: string, userId: number) {
+  return notifyNow(c.env, originOf(c), wait(c), {
+    topic: 'avisos',
+    audience: visibility === 'members' ? 'members' : 'all',
+    title: 'Vídeo novo no app',
+    body: title,
+    url: `/videos/${id}`,
+    createdBy: userId,
+  });
+}
 
 export function youtubeId(input: string): string | null {
   const s = input.trim();
@@ -76,6 +111,7 @@ export async function syncYoutube(env: Env): Promise<{ added: number; error?: st
   }
   const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map((m) => m[1]);
   const stmts: D1PreparedStatement[] = [];
+  const titulos: string[] = [];
   for (const e of entries.slice(0, 30)) {
     const id = e.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)?.[1];
     if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) continue;
@@ -88,11 +124,25 @@ export async function syncYoutube(env: Env): Promise<{ added: number; error?: st
          VALUES ('youtube', ?, ?, ?, ?, 'public', 1, ?, ?) ON CONFLICT(youtube_id) DO NOTHING`,
       ).bind(id, title, desc || null, DEFAULT_CATEGORY, published, now()),
     );
+    titulos.push(title);
   }
   let added = 0;
+  const novos: { id: number; title: string }[] = [];
   if (stmts.length) {
     const res = await env.DB.batch(stmts);
-    added = res.reduce((s, r) => s + (r.meta.changes ?? 0), 0);
+    res.forEach((r, i) => {
+      if (r.meta.changes) novos.push({ id: Number(r.meta.last_row_id), title: titulos[i] });
+    });
+    added = novos.length;
+  }
+  if (novos.length) {
+    await notify(env, {
+      topic: 'avisos',
+      audience: 'all',
+      title: novos.length === 1 ? 'Vídeo novo no app' : `${novos.length} vídeos novos no app`,
+      body: novos.length === 1 ? novos[0].title : `${novos[0].title} e mais ${novos.length - 1}`,
+      url: novos.length === 1 ? `/videos/${novos[0].id}` : '/videos',
+    });
   }
   await save(`OK: ${entries.length} vídeos no feed, ${added} novos.`);
   return { added };
@@ -169,6 +219,7 @@ videoRoutes.post('/youtube', async (c) => {
     title = info?.title?.slice(0, 200) ?? null;
   }
   if (!title) fail(400, 'Não consegui ler o título do vídeo. Digite um título.');
+  const vis = b.visibility === 'members' ? 'members' : 'public';
   const row = await c.env.DB.prepare(
     `INSERT INTO videos (source, youtube_id, title, description, category, speaker, visibility, published_at, created_by, created_at)
      VALUES ('youtube', ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
@@ -179,12 +230,13 @@ videoRoutes.post('/youtube', async (c) => {
       str(b.description, 2000, { label: 'descrição' }),
       str(b.category, 60, { label: 'categoria' }) ?? DEFAULT_CATEGORY,
       str(b.speaker, 80, { label: 'pregador' }),
-      b.visibility === 'members' ? 'members' : 'public',
+      vis,
       now(),
       u.id,
       now(),
     )
     .first<{ id: number }>();
+  await avisarVideoNovo(c, row!.id, title, vis, u.id);
   return c.json({ id: row!.id });
 });
 
@@ -195,23 +247,33 @@ videoRoutes.post('/drive', async (c) => {
   if (!id) fail(400, 'Não reconheci este link do Google Drive. No Drive: abra o vídeo → Compartilhar → Copiar link.');
   const exists = await c.env.DB.prepare('SELECT id FROM videos WHERE drive_id = ?').bind(id).first<{ id: number }>();
   if (exists) fail(409, 'Este vídeo do Drive já está no app.');
+  const titulo = reqStr(b.title, 200, 'o título');
+  const vis = b.visibility === 'members' ? 'members' : 'public';
   const row = await c.env.DB.prepare(
     `INSERT INTO videos (source, drive_id, title, description, category, speaker, visibility, published_at, created_by, created_at)
      VALUES ('drive', ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
   )
     .bind(
       id,
-      reqStr(b.title, 200, 'o título'),
+      titulo,
       str(b.description, 2000, { label: 'descrição' }),
       str(b.category, 60, { label: 'categoria' }) ?? DEFAULT_CATEGORY,
       str(b.speaker, 80, { label: 'pregador' }),
-      b.visibility === 'members' ? 'members' : 'public',
+      vis,
       now(),
       u.id,
       now(),
     )
     .first<{ id: number }>();
-  return c.json({ id: row!.id });
+  await avisarVideoNovo(c, row!.id, titulo, vis, u.id);
+  const aberto = await driveAberto(id);
+  return c.json({
+    id: row!.id,
+    aviso:
+      aberto === false
+        ? 'O vídeo foi adicionado, mas o arquivo parece estar privado no Drive: abra o vídeo no Google Drive → Compartilhar → Acesso geral → "Qualquer pessoa com o link", senão ele não toca no app.'
+        : null,
+  });
 });
 
 videoRoutes.post('/upload', async (c) => {
@@ -220,6 +282,7 @@ videoRoutes.post('/upload', async (c) => {
   const media = await claimMedia(c.env, b.media_id, u, ['video']);
   const poster = await optionalMedia(c.env, b.poster_id, u, ['poster']);
   const visibility = oneOf(b.visibility ?? 'members', ['public', 'members'] as const, 'visibilidade');
+  const titulo = reqStr(b.title, 200, 'o título');
   // O arquivo segue a mesma visibilidade do vídeo.
   const res = await c.env.DB.batch([
     c.env.DB.prepare(
@@ -228,7 +291,7 @@ videoRoutes.post('/upload', async (c) => {
     ).bind(
       media.id,
       poster,
-      reqStr(b.title, 200, 'o título'),
+      titulo,
       str(b.description, 2000, { label: 'descrição' }),
       str(b.category, 60, { label: 'categoria' }) ?? 'Vídeos curtos',
       str(b.speaker, 80, { label: 'pregador' }),
@@ -241,7 +304,9 @@ videoRoutes.post('/upload', async (c) => {
     c.env.DB.prepare('UPDATE media SET access = ? WHERE id IN (?, ?)').bind(visibility, media.id, poster ?? ''),
     useMediaStmt(c.env, [media.id, poster])!,
   ]);
-  return c.json({ id: res[0].meta.last_row_id });
+  const novoId = Number(res[0].meta.last_row_id);
+  await avisarVideoNovo(c, novoId, titulo, visibility, u.id);
+  return c.json({ id: novoId });
 });
 
 videoRoutes.put('/:id{[0-9]+}', async (c) => {
@@ -291,5 +356,6 @@ videoRoutes.post('/sincronizar', async (c) => {
   needMedia(c);
   const r = await syncYoutube(c.env);
   if (r.error) fail(502, r.error);
+  if (r.added) c.executionCtx.waitUntil(drain(c.env, originOf(c), 15).catch(() => undefined));
   return c.json(r);
 });
