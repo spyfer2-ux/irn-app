@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bell,
-  CalendarDays,
   Check,
   ChevronRight,
   Clock,
@@ -12,6 +11,7 @@ import {
   HandHelping,
   Images,
   MapPin,
+  MessageSquareHeart,
   Mic,
   PlaySquare,
   Radio,
@@ -63,7 +63,7 @@ export default function Home() {
         { to: '/fotos', label: 'Fotos', icon: <Images />, tone: '' },
         { to: '/oracao', label: 'Pedir oração', icon: <HandHeart />, tone: 'gold' },
         { to: '/dizimos', label: 'Dízimos e ofertas', icon: <HandCoins />, tone: 'gold' },
-        { to: '/agenda', label: 'Agenda', icon: <CalendarDays />, tone: '' },
+        { to: '/testemunhos', label: 'Testemunhos', icon: <MessageSquareHeart />, tone: '' },
         { to: '/ajuda', label: 'Ajuda mútua', icon: <HandHelping />, tone: '' },
         { to: '/mensagem', label: 'Mensagem do Pastor', icon: <Mic />, tone: 'gold' },
       ]
@@ -73,7 +73,7 @@ export default function Home() {
         { to: '/igreja', label: 'Como chegar', icon: <MapPin />, tone: '' },
         { to: '/visitante', label: 'Sou visitante', icon: <UserPlus />, tone: 'gold' },
         { to: '/dizimos', label: 'Dízimos e ofertas', icon: <HandCoins />, tone: 'gold' },
-        { to: '/agenda', label: 'Agenda', icon: <CalendarDays />, tone: '' },
+        { to: '/testemunhos', label: 'Testemunhos', icon: <MessageSquareHeart />, tone: '' },
         { to: '/ajuda', label: 'Ajuda mútua', icon: <HandHelping />, tone: '' },
         { to: '/mensagem', label: 'Mensagem do Pastor', icon: <Mic />, tone: 'gold' },
       ];
