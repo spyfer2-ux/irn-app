@@ -6,7 +6,7 @@ Feito para a sede da Av. dos Nacionalistas, 530 — Jardim Tango, São Paulo/SP,
 ## O que o app faz
 
 **Para todo mundo (sem login):** horários dos cultos com contagem regressiva e lembrete na agenda, endereço com mapa
-(Google Maps, Waze e Uber), live do culto dentro do app, vídeos do canal do YouTube (importados sozinhos a cada hora) e do Google Drive da igreja, testemunhos publicados,
+(Google Maps, Waze e Uber), live do culto dentro do app, vídeos do canal do YouTube (importados sozinhos a cada hora), testemunhos publicados,
 agenda de eventos, Palavra do dia, Bíblia com busca (Bíblia Livre e King James, funciona sem internet), cartão do
 visitante e notificações no celular.
 
@@ -17,7 +17,7 @@ visitante e notificações no celular.
 - Dízimos e ofertas: PIX com QR Code e "copia e cola" (com valor e tipo: dízimo, oferta, missões…), dados da conta do
   Bispo Ronaldo e registro da contribuição com foto do comprovante. A tesouraria confere no painel.
 - Pedidos de oração (mural da igreja ou só para a liderança, com opção anônima e botão "Orei"), testemunhos com
-  foto e vídeo do Google Drive (a liderança aprova antes de publicar; depois de publicado todo mundo vê, até quem
+  foto e vídeo do YouTube (a liderança aprova antes de publicar; depois de publicado todo mundo vê, até quem
   não tem login), campanhas com diário (ex.: 21 dias de oração), confirmação de presença em
   eventos, células, Casa de Paz, Rede Jovem e Missões com "Quero participar", aniversariantes do mês.
 
@@ -200,7 +200,7 @@ irn-app/
 │       ├── Home.tsx           Início
 │       ├── Live.tsx           Ao vivo (YouTube ou câmera) e histórico de lives
 │       ├── Broadcast.tsx      Transmitir pela câmera do celular
-│       ├── Videos.tsx         Vídeos (YouTube, link do Google Drive e enviados pelo app)
+│       ├── Videos.tsx         Vídeos (YouTube e enviados pelo app)
 │       ├── Photos.tsx         Biblioteca de fotos, álbuns, envio e visualizador
 │       ├── Agenda.tsx         Agenda, evento e confirmação de presença
 │       ├── Content.tsx        Avisos e Palavra do dia
@@ -254,14 +254,14 @@ irn-app/
 | `/` | Início: live, próximo culto, atalhos, Palavra, avisos, eventos, fotos, vídeos, aniversariantes | Todos |
 | `/ao-vivo` | Ao vivo (player e controles da equipe de mídia) | Todos |
 | `/transmitir` | Transmitir pela câmera | Mídia |
-| `/videos`, `/videos/:id` | Vídeos (YouTube, Google Drive e enviados pelo app) | Todos (vídeos "só membros" para membros) |
+| `/videos`, `/videos/:id` | Vídeos (YouTube e enviados pelo app) | Todos (vídeos "só membros" para membros) |
 | `/fotos`, `/fotos/album/:id` | Biblioteca de fotos | Membros |
 | `/agenda`, `/agenda/:id` | Agenda e evento | Todos |
 | `/avisos` | Mural de avisos | Todos (avisos "só membros" para membros) |
 | `/palavra`, `/palavra/:id` | Palavra do dia | Todos |
 | `/biblia`, `/biblia/:livro/:cap` | Bíblia (Bíblia Livre e King James): livros, capítulos, busca, copiar e compartilhar | Todos |
 | `/oracao` | Pedidos de oração | Quem tem login |
-| `/testemunhos` | Testemunhos (com vídeo do Drive) | Todos; só membro conta o seu |
+| `/testemunhos` | Testemunhos (com vídeo do YouTube) | Todos; só membro conta o seu |
 | `/campanhas`, `/campanhas/:id` | Campanhas com diário | Membros |
 | `/grupos` | Células, Casa de Paz, Rede Jovem, Missões | Todos |
 | `/dizimos` | Dízimos e ofertas | Membros (ou todos, se o admin liberar) |
