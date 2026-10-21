@@ -24,7 +24,7 @@ import { api, useApi } from '../lib/api';
 import type { HomeData } from '../lib/types';
 import { firstName, greeting, weekdaysPhrase } from '../lib/format';
 import { Avatar, Button, MediaImg, Section, Skeleton, toastError } from '../components/ui';
-import { EventCard, NextCultCard, NoticeCard, VideoCard } from '../components/cards';
+import { EventCard, isVideoNovo, NextCultCard, NoticeCard, VideoCard, VideoHighlight } from '../components/cards';
 import { InstallBanner } from './Account';
 import { BibleShortcut } from './Bible';
 import { PastorHomeCard } from './Extras';
@@ -78,6 +78,7 @@ export default function Home() {
         { to: '/mensagem', label: 'Mensagem do Pastor', icon: <Mic />, tone: 'gold' },
       ];
 
+  const videoNovo = data && data.videos.length && isVideoNovo(data.videos[0]) ? data.videos[0] : null;
   const pendingTotal = data?.pending ? data.pending.users + data.pending.testimonies + data.pending.visitors + data.pending.requests + (data.pending.help ?? 0) : 0;
 
   return (
@@ -261,11 +262,16 @@ export default function Home() {
         )}
 
         {data && data.videos.length > 0 && (
-          <Section title="Vídeos" action={<Link to="/videos">Ver todos</Link>}>
-            <div className="hscroll">
-              {data.videos.map((v) => (
-                <VideoCard key={v.id} v={v} />
-              ))}
+          <Section title={videoNovo ? 'Vídeo novo' : 'Vídeos'} action={<Link to="/videos">Ver todos</Link>}>
+            <div className="stack">
+              {videoNovo && <VideoHighlight v={videoNovo} />}
+              {(videoNovo ? data.videos.slice(1) : data.videos).length > 0 && (
+                <div className="hscroll">
+                  {(videoNovo ? data.videos.slice(1) : data.videos).map((v) => (
+                    <VideoCard key={v.id} v={v} />
+                  ))}
+                </div>
+              )}
             </div>
           </Section>
         )}

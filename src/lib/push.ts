@@ -5,7 +5,7 @@ export const TOPIC_LABELS: Record<string, { label: string; hint: string; members
   cultos: { label: 'Lembrete dos cultos', hint: 'Antes de cada culto' },
   eventos: { label: 'Eventos', hint: 'Eventos novos e lembretes' },
   palavra: { label: 'Mensagem do Pastor e Palavra do dia', hint: 'A mensagem diária do pastor e da liderança' },
-  avisos: { label: 'Avisos e pregações', hint: 'Recados da igreja e pregações novas' },
+  avisos: { label: 'Avisos, pregações e vídeos', hint: 'Recados da igreja, pregações e vídeos novos' },
   fotos: { label: 'Fotos novas', hint: 'Quando alguém publica fotos', members: true },
   oracao: { label: 'Pedidos de oração', hint: 'Novos pedidos no mural', members: true },
 };
