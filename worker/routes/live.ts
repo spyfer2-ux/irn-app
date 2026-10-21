@@ -10,7 +10,7 @@ export const liveRoutes = new Hono<AppEnv>();
 const MAX_LIVE_MS = 5 * 3600_000;
 
 export async function publicLive(env: Env) {
-  const { live, church, stream } = await getSettings(env, ['live', 'church', 'stream']);
+  const { live, church } = await getSettings(env, ['live', 'church']);
   const active = live.active && now() - live.started_at < MAX_LIVE_MS;
   return {
     active,
@@ -19,8 +19,6 @@ export async function publicLive(env: Env) {
     youtube_id: active ? live.youtube_id : '',
     started_at: active ? live.started_at : 0,
     channel_id: church.youtube_channel_id,
-    whep_url: active && live.source === 'app' ? stream.whep_url : '',
-    app_ready: !!(stream.whep_url && stream.whip_url),
   };
 }
 
@@ -39,8 +37,8 @@ liveRoutes.get('/', async (c) => c.json(await publicLive(c.env)));
 liveRoutes.post('/iniciar', async (c) => {
   const u = needMedia(c);
   const b = await body(c);
-  const source = oneOf(b.source, ['youtube', 'app'] as const, 'tipo de transmissão');
-  const { live, stream, church } = await getSettings(c.env, ['live', 'stream', 'church']);
+  const source = oneOf(b.source ?? 'youtube', ['youtube'] as const, 'tipo de transmissão');
+  const { live, church } = await getSettings(c.env, ['live', 'church']);
   if (live.active && now() - live.started_at < MAX_LIVE_MS && b.replace !== true)
     fail(409, 'Já existe uma live em andamento. Encerre a atual antes de começar outra.');
   let ytId = '';
@@ -52,8 +50,6 @@ liveRoutes.post('/iniciar', async (c) => {
     } else if (!church.youtube_channel_id) {
       fail(400, 'Cole o link da live do YouTube (ou cadastre o canal em Configurações).');
     }
-  } else if (!stream.whip_url || !stream.whep_url) {
-    fail(400, 'A transmissão pelo app ainda não foi configurada. Veja Administração → Configurações → Transmissão.');
   }
   const title = str(b.title, 120, { label: 'título' }) ?? 'Culto ao vivo';
   const t = now();
@@ -84,14 +80,6 @@ liveRoutes.post('/encerrar', async (c) => {
   const ended = await endLive(c.env, u.id);
   if (ended) await auditLog(c, u.id, 'live_encerrada', '').run();
   return c.json({ ok: true });
-});
-
-/** Endereço secreto para transmitir (só equipe de mídia). */
-liveRoutes.get('/transmitir', async (c) => {
-  needMedia(c);
-  const stream = await getSetting(c.env, 'stream');
-  if (!stream.whip_url) fail(400, 'A transmissão pelo app ainda não foi configurada pelo administrador.');
-  return c.json({ whip_url: stream.whip_url, whep_url: stream.whep_url });
 });
 
 liveRoutes.get('/historico', async (c) => {

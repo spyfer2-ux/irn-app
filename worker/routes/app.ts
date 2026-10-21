@@ -11,7 +11,7 @@ export const appRoutes = new Hono<AppEnv>();
 
 appRoutes.get('/boot', async (c) => {
   const u = c.get('user');
-  const { church, schedule, giving, stream } = await getSettings(c.env, ['church', 'schedule', 'giving', 'stream']);
+  const { church, schedule, giving } = await getSettings(c.env, ['church', 'schedule', 'giving']);
   const host = new URL(c.req.url).hostname;
   return c.json({
     user: u ? meView(u) : null,
@@ -22,7 +22,6 @@ appRoutes.get('/boot', async (c) => {
       dev_login: c.env.DEV_LOGIN === '1' && (host === 'localhost' || host === '127.0.0.1'),
       storage: storageMode(c.env),
       video_upload: !!c.env.BUCKET,
-      stream_ready: !!(stream.whip_url && stream.whep_url),
       giving_public: giving.visible_to === 'public',
     },
     now: now(),
