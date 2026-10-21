@@ -118,26 +118,23 @@ await check('visitante: vídeos importados do canal do YouTube', async () => {
   await v.locator('.video-card').first().waitFor();
   await shot(v, '03-videos.png');
 });
-const addDrive = async (page, fileId, title) => {
+const addVideo = async (page, url, title) => {
   await page.goto(BASE + '/videos');
   await page.getByRole('button', { name: 'Adicionar' }).click();
   const d = dialog(page);
-  await d.getByRole('button', { name: 'Link do Drive' }).click();
-  await d.getByLabel(/Link do vídeo no Drive/).fill(`https://drive.google.com/file/d/${fileId}/view?usp=sharing`);
-  await d.getByLabel('Título').fill(title);
+  await d.getByLabel(/Link do vídeo/).fill(url);
+  await d.getByLabel(/Título/).fill(title);
   await d.getByRole('button', { name: 'Adicionar' }).click();
   await page.waitForURL(/\/videos\/\d+$/);
 };
 
-await check('admin: publica vídeo pelo link do Google Drive', async () => {
-  await addDrive(a, '1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv', 'Louvor da Rede Jovem');
-  // Toca no player do próprio aparelho; sem internet para o Google (como aqui), cai no quadro do Drive.
-  const src = await a.locator('.player video, .player iframe').first().getAttribute('src');
-  if (!src || !src.includes('1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUv')) throw new Error('o vídeo do Drive não entrou no player: ' + src);
-  await a.getByRole('link', { name: 'Abrir no Google Drive' }).waitFor();
+await check('admin: publica vídeo em pé pelo link de Short do YouTube', async () => {
+  await addVideo(a, 'https://www.youtube.com/shorts/aBcDeFgHiJk', 'Louvor da Rede Jovem');
+  // Link de Short entra marcado como vídeo em pé, e o player fica na vertical.
+  await a.locator('.player.vertical iframe').waitFor();
 });
 await check('vídeo novo aparece em destaque e com o selo "Novo"', async () => {
-  await addDrive(a, '9Z8y7X6w5V4u3T2s1R0qPoNmLkJiHgFe', 'Coral da igreja');
+  await addVideo(a, 'https://youtu.be/XyZ12345678', 'Coral da igreja');
   await a.goto(BASE + '/videos');
   await a.locator('.video-highlight').getByText('Novo vídeo publicado').waitFor();
   await a.locator('.video-highlight').getByText('Coral da igreja').waitFor();
