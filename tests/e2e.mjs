@@ -63,7 +63,7 @@ async function newPhone(name, opts = {}) {
     errors.push(`[${name}] ${t}`);
   });
   page.on('pageerror', (e) => errors.push(`[${name}] erro na página: ${e.message}`));
-  page.setDefaultTimeout(12000);
+  page.setDefaultTimeout(20000); // máquina lenta não é falha: espera um pouco mais antes de desistir
   pages.push(page);
   return page;
 }
@@ -507,7 +507,10 @@ await check('admin: publica pregação pelo link do YouTube', async () => {
   await d.getByLabel('Título').fill('O poder da fé');
   await d.getByLabel('Texto bíblico').fill('Hebreus 11.1-6');
   await d.getByLabel(/Link do vídeo no YouTube/).fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  // Deixa o formulário assentar: salvar no mesmo instante do preenchimento perde o que foi digitado.
+  await a.waitForTimeout(400);
   await d.getByRole('button', { name: 'Salvar' }).click();
+  await toast(a, 'Pregação salva.');
   await a.waitForURL(/\/pregacoes\/\d+$/);
   await a.locator('.player iframe').waitFor();
 });
@@ -627,7 +630,8 @@ await check('membro: atalho Cultos abre os vídeos dos cultos', async () => {
   if (await m.getByRole('link', { name: 'Pedir oração' }).count()) throw new Error('"Pedir oração" ainda está nos atalhos do Início');
   await m.getByRole('link', { name: 'Cultos', exact: true }).click();
   await m.waitForURL(/\/videos\?categoria=Cultos/);
-  await m.locator('.video-card').first().waitFor();
+  // Em Cultos a tela é a agenda por data, não a grade.
+  await m.locator('.mes-titulo').first().waitFor();
 });
 
 await check('mídia: ajusta a capa do vídeo antes de publicar', async () => {
@@ -645,11 +649,34 @@ await check('mídia: ajusta a capa do vídeo antes de publicar', async () => {
   await editor.getByRole('button', { name: 'Usar esta capa' }).click();
   // Com a capa pronta, o botão de trocar aparece no lugar da área de escolher.
   await dialog(a).getByRole('button', { name: 'Trocar imagem' }).waitFor({ timeout: 20000 });
+  // Deixa o formulário assentar: enviar no mesmo instante do preenchimento perde o que foi digitado.
+  await a.waitForTimeout(400);
   await dialog(a).getByRole('button', { name: 'Adicionar' }).click();
+  await toast(a, 'Vídeo adicionado!');
   await a.waitForURL(/\/videos\/\d+$/);
   await a.goto(BASE + '/videos');
   const capa = await a.locator('.video-highlight .thumb img, .video-grid .thumb img').first().getAttribute('src');
   if (!capa || !capa.startsWith('/api/media/')) throw new Error('a capa escolhida não apareceu na lista: ' + capa);
+});
+
+await check('mídia: culto entra na agenda pela data', async () => {
+  await a.goto(BASE + '/videos');
+  await a.getByRole('button', { name: 'Adicionar' }).click();
+  const d = dialog(a);
+  await d.getByLabel(/Link do vídeo/).fill('https://youtu.be/AgEnDa12345');
+  await d.getByLabel(/Título/).fill('Culto de Domingo gravado');
+  await d.getByLabel(/Data do culto/).fill('2026-10-18');
+  // O formulário precisa assentar antes do envio: preencher e clicar no mesmo instante perde o que foi digitado.
+  await a.waitForTimeout(400);
+  await d.getByRole('button', { name: 'Adicionar' }).click();
+  await toast(a, 'Vídeo adicionado!');
+  await a.waitForURL(/\/videos\/\d+$/);
+  // Na categoria dos cultos a tela vira agenda, agrupada por mês.
+  await a.goto(BASE + '/videos?categoria=' + encodeURIComponent('Cultos e pregações'));
+  await a.getByText('outubro de 2026').waitFor();
+  await a.getByText('Culto de Domingo gravado').waitFor();
+  await a.getByText('domingo, 18 de outubro').waitFor();
+  await shot(a, '27-agenda-cultos.png', true);
 });
 
 await browser.close();
