@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Clapperboard, EyeOff, Film, Link2, Pencil, Plus, RefreshCw, Search, Share2, Trash2, Upload } from 'lucide-react';
 import { useSession } from '../lib/session';
 import { api, useApi } from '../lib/api';
@@ -38,7 +38,10 @@ interface VideoList {
 export default function Videos() {
   const { isMedia } = useSession();
   const [fonte, setFonte] = useState<'todos' | 'youtube' | 'upload'>('todos');
-  const [cat, setCat] = useState('');
+  // A categoria vem do endereço, para o atalho "Cultos" do Início já abrir filtrado.
+  const [params, setParams] = useSearchParams();
+  const cat = params.get('categoria') ?? '';
+  const setCat = (v: string) => setParams(v ? { categoria: v } : {}, { replace: true });
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);

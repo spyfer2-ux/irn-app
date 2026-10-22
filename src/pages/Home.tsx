@@ -6,8 +6,8 @@ import {
   ChevronRight,
   Clock,
   Gift,
+  Church,
   HandCoins,
-  HandHeart,
   HandHelping,
   Images,
   MapPin,
@@ -28,6 +28,9 @@ import { EventCard, isVideoNovo, NextCultCard, NoticeCard, VideoCard, VideoHighl
 import { InstallBanner } from './Account';
 import { BibleShortcut } from './Bible';
 import { PastorHomeCard } from './Extras';
+
+/** Atalho dos cultos: abre a tela Vídeos já filtrada na categoria dos cultos. */
+const CULTOS = `/videos?categoria=${encodeURIComponent('Cultos e pregações')}`;
 
 export function useNow(ms = 30000) {
   const [now, setNow] = useState(Date.now());
@@ -61,7 +64,7 @@ export default function Home() {
         { to: '/ao-vivo', label: 'Ao vivo', icon: <Radio />, tone: 'live' },
         { to: '/videos', label: 'Vídeos', icon: <PlaySquare />, tone: '' },
         { to: '/fotos', label: 'Fotos', icon: <Images />, tone: '' },
-        { to: '/oracao', label: 'Pedir oração', icon: <HandHeart />, tone: 'gold' },
+        { to: CULTOS, label: 'Cultos', icon: <Church />, tone: 'gold' },
         { to: '/dizimos', label: 'Dízimos e ofertas', icon: <HandCoins />, tone: 'gold' },
         { to: '/testemunhos', label: 'Testemunhos', icon: <MessageSquareHeart />, tone: '' },
         { to: '/ajuda', label: 'Ajuda mútua', icon: <HandHelping />, tone: '' },
