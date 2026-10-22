@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Clapperboard, EyeOff, Film, Link2, Pencil, Plus, RefreshCw, Search, Share2, Trash2, Upload } from 'lucide-react';
+import { ChevronRight, Clapperboard, EyeOff, Film, Link2, Pencil, Plus, RefreshCw, Search, Share2, Trash2, Upload } from 'lucide-react';
 import { useSession } from '../lib/session';
 import { api, useApi } from '../lib/api';
 import type { Video } from '../lib/types';
-import { ago, bytes, duration, longDate, parts } from '../lib/format';
+import { ago, bytes, cap, duration, longDate, MONTHS, parts, ymdParts } from '../lib/format';
 import { readVideoMeta, uploadVideo } from '../lib/upload';
 import { share } from '../lib/ics';
 import {
@@ -25,9 +25,60 @@ import {
   toastError,
   useAction,
 } from '../components/ui';
-import { isVideoNovo, VideoCard, VideoHighlight } from '../components/cards';
+import { isVideoNovo, VideoCard, videoThumb, VideoHighlight } from '../components/cards';
 
 const CATEGORIES = ['Cultos e pregações', 'Louvor', 'Rede Jovem', 'Testemunhos', 'Estudos', 'Eventos', 'Avisos', 'Vídeos curtos'];
+/** Filtrando por esta categoria, a tela vira agenda: os vídeos aparecem por data de culto. */
+const CULTOS = CATEGORIES[0];
+
+/** Dia que vale para a agenda: a data do culto quando existe; senão, o dia da publicação. */
+const diaDoCulto = (v: Video) => v.service_on || parts(v.published_at).ymd;
+
+function AgendaCultos({ videos }: { videos: Video[] }) {
+  const ordenados = [...videos].sort((a, b) => diaDoCulto(b).localeCompare(diaDoCulto(a)));
+  const meses: { chave: string; titulo: string; itens: Video[] }[] = [];
+  for (const v of ordenados) {
+    const dia = diaDoCulto(v);
+    const chave = dia.slice(0, 7);
+    let grupo = meses.find((m) => m.chave === chave);
+    if (!grupo) {
+      const p = ymdParts(dia);
+      grupo = { chave, titulo: `${cap(MONTHS[p.month - 1])} de ${p.year}`, itens: [] };
+      meses.push(grupo);
+    }
+    grupo.itens.push(v);
+  }
+  return (
+    <div className="stack-lg">
+      {meses.map((m) => (
+        <div key={m.chave} className="stack">
+          <h3 className="mes-titulo">{m.titulo}</h3>
+          <div className="card">
+            <div className="list">
+              {m.itens.map((v) => {
+                const capa = videoThumb(v);
+                return (
+                  <Link key={v.id} to={`/videos/${v.id}`} className="list-item" style={{ opacity: v.hidden ? 0.5 : 1 }}>
+                    <span className="thumb-mini">{capa ? <img src={capa} alt="" loading="lazy" referrerPolicy="no-referrer" /> : null}</span>
+                    <div className="grow">
+                      <div style={{ fontWeight: 620 }}>{v.title}</div>
+                      <div className="small muted">
+                        {longDate(diaDoCulto(v))}
+                        {v.duration ? ` · ${duration(v.duration)}` : ''}
+                      </div>
+                    </div>
+                    {isVideoNovo(v) && <span className="badge gold">Novo</span>}
+                    <ChevronRight className="chev" />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface VideoList {
   videos: Video[];
@@ -118,6 +169,9 @@ export default function Videos() {
         {loading && !data ? (
           <LoadingList n={4} h={190} />
         ) : list.length ? (
+          cat === CULTOS ? (
+            <AgendaCultos videos={list} />
+          ) : (
           <>
             {destaque && <VideoHighlight v={destaque} />}
             {grade.length > 0 && (
@@ -131,6 +185,7 @@ export default function Videos() {
               </div>
             )}
           </>
+          )
         ) : (
           <Empty
             icon={<Film />}
@@ -161,6 +216,7 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
   const [isPublic, setIsPublic] = useState(true);
   const [capa, setCapa] = useState<string | null>(null);
   const [emPe, setEmPe] = useState(false);
+  const [dataCulto, setDataCulto] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -177,7 +233,7 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
       if (mode === 'youtube') {
         const r = await api<{ id: number }>('/videos/youtube', {
           method: 'POST',
-          body: { url, title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', poster_id: capa, vertical: emPe },
+          body: { url, title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', poster_id: capa, vertical: emPe, service_on: dataCulto || null },
         });
         toast('Vídeo adicionado!', 'ok');
         onDone();
@@ -193,7 +249,7 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
         const up = await uploadVideo(file, meta, access, setProgress, abort.current.signal);
         const r = await api<{ id: number }>('/videos/upload', {
           method: 'POST',
-          body: { media_id: up.mediaId, poster_id: up.posterId, title, category, speaker, description: desc, visibility: access },
+          body: { media_id: up.mediaId, poster_id: up.posterId, title, category, speaker, description: desc, visibility: access, service_on: dataCulto || null },
         });
         toast('Vídeo enviado!', 'ok');
         onDone();
@@ -288,6 +344,13 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
               <SelectField label="Categoria" value={category} onChange={setCategory} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
               <TextField label="Pregador (opcional)" value={speaker} onChange={setSpeaker} maxLength={80} />
             </div>
+            <TextField
+              label="Data do culto (opcional)"
+              type="date"
+              value={dataCulto}
+              onChange={setDataCulto}
+              hint="Em Cultos, os vídeos aparecem em agenda por esta data. Vazio, vale o dia em que você publicou."
+            />
             <TextField label="Descrição (opcional)" value={desc} onChange={setDesc} multiline rows={3} maxLength={2000} />
             {mode !== 'upload' && (
               <Toggle
@@ -409,6 +472,7 @@ function EditVideoSheet({ v, onClose, onDone }: { v: Video; onClose: () => void;
   const [hidden, setHidden] = useState(!!v.hidden);
   const [capa, setCapa] = useState<string | null>(v.poster_id);
   const [emPe, setEmPe] = useState(!!v.vertical);
+  const [dataCulto, setDataCulto] = useState(v.service_on ?? '');
   const { busy, run } = useAction();
   const cats = CATEGORIES.includes(category) ? CATEGORIES : [category, ...CATEGORIES];
   return (
@@ -424,7 +488,7 @@ function EditVideoSheet({ v, onClose, onDone }: { v: Video; onClose: () => void;
             void run(async () => {
               await api(`/videos/${v.id}`, {
                 method: 'PUT',
-                body: { title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', hidden, poster_id: capa, vertical: emPe },
+                body: { title, category, speaker, description: desc, visibility: isPublic ? 'public' : 'members', hidden, poster_id: capa, vertical: emPe, service_on: dataCulto || null },
               });
               onDone();
               onClose();
@@ -439,6 +503,7 @@ function EditVideoSheet({ v, onClose, onDone }: { v: Video; onClose: () => void;
         <TextField label="Título" value={title} onChange={setTitle} maxLength={200} />
         <SelectField label="Categoria" value={category} onChange={setCategory} options={cats.map((c) => ({ value: c, label: c }))} />
         <TextField label="Pregador" value={speaker} onChange={setSpeaker} maxLength={80} />
+        <TextField label="Data do culto" type="date" value={dataCulto} onChange={setDataCulto} hint="Usada na agenda da tela Cultos." />
         <TextField label="Descrição" value={desc} onChange={setDesc} multiline rows={4} maxLength={2000} />
         {v.source !== 'upload' && (
           <CoverPicker value={capa} onChange={setCapa} access={isPublic ? 'public' : 'members'} label="Capa do vídeo" ajustar />
