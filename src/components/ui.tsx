@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Copy, ImagePlus, Loader2, LogIn, Clock, X } from 'lucide-react';
 import { initials } from '../lib/format';
 import { useSession } from '../lib/session';
-import { prepareCover } from '../lib/image';
+import { prepareCover, prepareCrop, type Resized } from '../lib/image';
 import { uploadImage } from '../lib/upload';
 import { errMsg } from '../lib/api';
 
@@ -515,27 +515,42 @@ export function CoverPicker({
   onChange,
   access,
   label = 'Imagem (opcional)',
+  ajustar,
 }: {
   value: string | null;
   onChange: (id: string | null) => void;
   access: 'public' | 'members';
   label?: string;
+  /** Abre a tela de ajuste, para a pessoa escolher o pedaço que aparece na capa (16:9). */
+  ajustar?: boolean;
 }) {
   const { features } = useSession();
   const [busy, setBusy] = useState(false);
+  const [editando, setEditando] = useState<File | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const pick = async (file: File | undefined) => {
-    if (!file) return;
+  const limpar = () => {
+    setEditando(null);
+    if (input.current) input.current.value = '';
+  };
+  const enviar = async (fazer: () => Promise<Resized>) => {
     setBusy(true);
     try {
-      const img = await prepareCover(file, features.storage);
-      onChange(await uploadImage(img, 'cover', access));
+      onChange(await uploadImage(await fazer(), 'cover', access));
+      limpar();
     } catch (e) {
       toastError(e);
     } finally {
       setBusy(false);
       if (input.current) input.current.value = '';
     }
+  };
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    if (ajustar) {
+      setEditando(file);
+      return;
+    }
+    await enviar(() => prepareCover(file, features.storage));
   };
   return (
     <div className="field">
@@ -559,7 +574,123 @@ export function CoverPicker({
         </button>
       )}
       <input ref={input} type="file" accept="image/*" hidden onChange={(e) => void pick(e.target.files?.[0])} />
+      {editando && (
+        <CoverEditor
+          file={editando}
+          busy={busy}
+          onCancel={limpar}
+          onConfirm={(rect) => void enviar(() => prepareCrop(editando, rect, features.storage))}
+        />
+      )}
     </div>
+  );
+}
+
+/** Ajuste da capa: arrasta para escolher o pedaço e usa a barra para aproximar. */
+function CoverEditor({
+  file,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  file: File;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: (rect: { sx: number; sy: number; sw: number; sh: number }) => void;
+}) {
+  const [url, setUrl] = useState('');
+  const [nat, setNat] = useState({ w: 0, h: 0 });
+  const [zoom, setZoom] = useState(-1);
+  const [off, setOff] = useState({ x: 0, y: 0 });
+  const [moldura, setMoldura] = useState({ w: 0, h: 0 });
+  const caixa = useRef<HTMLDivElement>(null);
+  const arrasto = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
+  useEffect(() => {
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
+
+  useEffect(() => {
+    const el = caixa.current;
+    if (!el) return;
+    const medir = () => setMoldura({ w: el.clientWidth, h: el.clientHeight });
+    medir();
+    const obs = new ResizeObserver(medir);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [url]);
+
+  const cabe = nat.w && moldura.w ? Math.min(moldura.w / nat.w, moldura.h / nat.h) : 1;
+  const cobre = nat.w && moldura.w ? Math.max(moldura.w / nat.w, moldura.h / nat.h) : 1;
+  const maior = cobre * 2.5;
+  const inicial = maior > cabe ? (cobre - cabe) / (maior - cabe) : 0;
+  const z = zoom < 0 ? inicial : zoom;
+  const escala = cabe + (maior - cabe) * z;
+  const larg = nat.w * escala;
+  const alt = nat.h * escala;
+  const preso = (v: number, img: number, quadro: number) => (img <= quadro ? (quadro - img) / 2 : Math.min(0, Math.max(quadro - img, v)));
+  const ox = preso(off.x, larg, moldura.w);
+  const oy = preso(off.y, alt, moldura.h);
+
+  return (
+    <Sheet
+      open
+      title="Ajustar a capa"
+      onClose={onCancel}
+      footer={
+        <Button
+          block
+          loading={busy}
+          disabled={!nat.w || !moldura.w}
+          onClick={() => onConfirm({ sx: -ox / escala, sy: -oy / escala, sw: moldura.w / escala, sh: moldura.h / escala })}
+        >
+          Usar esta capa
+        </Button>
+      }
+    >
+      <div className="stack">
+        <div
+          ref={caixa}
+          className="capa-editor"
+          onPointerDown={(e) => {
+            arrasto.current = { x: e.clientX, y: e.clientY, ox, oy };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            const a = arrasto.current;
+            if (!a) return;
+            setOff({ x: a.ox + (e.clientX - a.x), y: a.oy + (e.clientY - a.y) });
+          }}
+          onPointerUp={() => (arrasto.current = null)}
+          onPointerCancel={() => (arrasto.current = null)}
+        >
+          {url && (
+            <img
+              src={url}
+              alt=""
+              draggable={false}
+              onLoad={(e) => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+              style={{ left: ox, top: oy, width: larg, height: alt }}
+            />
+          )}
+        </div>
+        <div className="field">
+          <span className="field-label">Aproximar</span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={z}
+            aria-label="Aproximar a capa"
+            onChange={(e) => setZoom(Number(e.target.value))}
+          />
+        </div>
+        <p className="tiny muted">Arraste a imagem para escolher o pedaço que aparece. O que ficar dentro da moldura é a capa do vídeo.</p>
+      </div>
+    </Sheet>
   );
 }
 
