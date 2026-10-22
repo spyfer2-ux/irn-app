@@ -638,6 +638,15 @@ await check('computador: início', async () => {
   await shot(desk, '25-inicio-computador.png');
 });
 
+// Fica no fim da fila de propósito: é uma conferência de tela, não precisa correr no meio do fluxo.
+await check('membro: atalho Cultos abre os vídeos dos cultos', async () => {
+  await m.goto(BASE + '/');
+  if (await m.getByRole('link', { name: 'Pedir oração' }).count()) throw new Error('"Pedir oração" ainda está nos atalhos do Início');
+  await m.getByRole('link', { name: 'Cultos', exact: true }).click();
+  await m.waitForURL(/\/videos\?categoria=Cultos/);
+  await m.locator('.video-card').first().waitFor();
+});
+
 await browser.close();
 console.log('\n================ RESULTADO ================');
 console.log(`Falhas: ${failures.length}`);
