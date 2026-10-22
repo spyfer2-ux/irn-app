@@ -1164,6 +1164,24 @@ p {
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 18px 14px;
 }
+.capa-editor {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: #0b1d3f;
+  touch-action: none;
+  cursor: grab;
+}
+.capa-editor:active {
+  cursor: grabbing;
+}
+.capa-editor img {
+  position: absolute;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 .player {
   position: relative;
   aspect-ratio: 16 / 9;
