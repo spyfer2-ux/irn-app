@@ -118,3 +118,36 @@ export async function prepareIcons(file: Blob) {
   if ('close' in src) src.close();
   return { logo, icon192, icon512, maskable };
 }
+
+/** Recorta o pedaço escolhido da imagem e devolve a capa pronta (16:9) para enviar. */
+export async function prepareCrop(
+  file: Blob,
+  rect: { sx: number; sy: number; sw: number; sh: number },
+  storage: 'r2' | 'd1',
+): Promise<Resized> {
+  const src = await load(file);
+  const maxBytes = storage === 'r2' ? 1_500_000 : 700_000;
+  let largura = storage === 'r2' ? 1600 : 1280;
+  let quality = 0.86;
+  try {
+    for (let tentativa = 0; tentativa < 7; tentativa++) {
+      const altura = Math.round((largura * 9) / 16);
+      const canvas = document.createElement('canvas');
+      canvas.width = largura;
+      canvas.height = altura;
+      const ctx = canvas.getContext('2d')!;
+      // Fundo escuro para quando a imagem não preenche a moldura inteira.
+      ctx.fillStyle = '#0b1d3f';
+      ctx.fillRect(0, 0, largura, altura);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(src, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, largura, altura);
+      const blob = await toBlob(canvas, 'image/jpeg', quality);
+      if (blob.size <= maxBytes || tentativa === 6) return { blob, width: largura, height: altura };
+      if (quality > 0.66) quality -= 0.1;
+      else largura = Math.round(largura * 0.8);
+    }
+  } finally {
+    if ('close' in src) src.close();
+  }
+  throw new Error('Falha ao preparar a imagem.');
+}
