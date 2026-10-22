@@ -281,6 +281,7 @@ function AddVideoSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
                 onChange={setCapa}
                 access={isPublic ? 'public' : 'members'}
                 label="Capa do vídeo (opcional)"
+                ajustar
               />
             )}
             <div className="form-grid collapse">
@@ -440,7 +441,7 @@ function EditVideoSheet({ v, onClose, onDone }: { v: Video; onClose: () => void;
         <TextField label="Pregador" value={speaker} onChange={setSpeaker} maxLength={80} />
         <TextField label="Descrição" value={desc} onChange={setDesc} multiline rows={4} maxLength={2000} />
         {v.source !== 'upload' && (
-          <CoverPicker value={capa} onChange={setCapa} access={isPublic ? 'public' : 'members'} label="Capa do vídeo" />
+          <CoverPicker value={capa} onChange={setCapa} access={isPublic ? 'public' : 'members'} label="Capa do vídeo" ajustar />
         )}
         <Toggle label="Vídeo em pé" hint="Player em pé, ocupando a tela — para vídeo gravado na vertical." checked={emPe} onChange={setEmPe} />
         <Toggle label="Público" hint={isPublic ? 'Visitantes também veem.' : 'Só membros aprovados veem.'} checked={isPublic} onChange={setIsPublic} />
