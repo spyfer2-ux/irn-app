@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { AppEnv, Ctx, Env } from '../types';
-import { auditLog, body, bool, fail, int, isMedia, isMember, needMedia, now, oneOf, originOf, reqStr, str, visibleSet } from '../util';
+import { auditLog, body, bool, dateStr, fail, int, isMedia, isMember, needMedia, now, oneOf, originOf, reqStr, str, visibleSet } from '../util';
 import { drain, notify, notifyNow } from '../push';
 import { claimMedia, deleteMedia, optionalMedia, useMediaStmt } from '../storage';
 import { getSetting, setSetting } from '../settings';
@@ -215,8 +215,8 @@ videoRoutes.post('/youtube', async (c) => {
   const vis = b.visibility === 'members' ? 'members' : 'public';
   const capa = await optionalMedia(c.env, b.poster_id, u, ['cover', 'poster']);
   const row = await c.env.DB.prepare(
-    `INSERT INTO videos (source, youtube_id, poster_id, title, description, category, speaker, visibility, vertical, published_at, created_by, created_at)
-     VALUES ('youtube', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    `INSERT INTO videos (source, youtube_id, poster_id, title, description, category, speaker, visibility, vertical, service_on, published_at, created_by, created_at)
+     VALUES ('youtube', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
   )
     .bind(
       id,
@@ -227,6 +227,7 @@ videoRoutes.post('/youtube', async (c) => {
       str(b.speaker, 80, { label: 'pregador' }),
       vis,
       emPe,
+      dateStr(b.service_on, 'data do culto'),
       now(),
       u.id,
       now(),
@@ -247,8 +248,8 @@ videoRoutes.post('/upload', async (c) => {
   // O arquivo segue a mesma visibilidade do vídeo.
   const res = await c.env.DB.batch([
     c.env.DB.prepare(
-      `INSERT INTO videos (source, media_id, poster_id, title, description, category, speaker, duration, visibility, published_at, created_by, created_at)
-       VALUES ('upload', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO videos (source, media_id, poster_id, title, description, category, speaker, duration, visibility, service_on, published_at, created_by, created_at)
+       VALUES ('upload', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       media.id,
       poster,
@@ -258,6 +259,7 @@ videoRoutes.post('/upload', async (c) => {
       str(b.speaker, 80, { label: 'pregador' }),
       media.duration,
       visibility,
+      dateStr(b.service_on, 'data do culto'),
       now(),
       u.id,
       now(),
@@ -282,7 +284,7 @@ videoRoutes.put('/:id{[0-9]+}', async (c) => {
   // Só mexe na capa quando a tela mandou o campo.
   const trocaCapa = b.poster_id !== undefined;
   const capa = trocaCapa ? await optionalMedia(c.env, b.poster_id, u, ['cover', 'poster']) : null;
-  const campos = ['title = ?', 'description = ?', 'category = ?', 'speaker = ?', 'visibility = ?', 'hidden = ?', 'vertical = ?'];
+  const campos = ['title = ?', 'description = ?', 'category = ?', 'speaker = ?', 'visibility = ?', 'hidden = ?', 'vertical = ?', 'service_on = ?'];
   const binds: unknown[] = [
     reqStr(b.title, 200, 'o título'),
     str(b.description, 2000, { label: 'descrição' }),
@@ -291,6 +293,7 @@ videoRoutes.put('/:id{[0-9]+}', async (c) => {
     visibility,
     bool(b.hidden) ? 1 : 0,
     bool(b.vertical) ? 1 : 0,
+    dateStr(b.service_on, 'data do culto'),
   ];
   if (trocaCapa) {
     campos.push('poster_id = ?');
