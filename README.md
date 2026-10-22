@@ -21,7 +21,7 @@ visitante e notificações no celular.
   não tem login), campanhas com diário (ex.: 21 dias de oração), confirmação de presença em
   eventos, células, Casa de Paz, Rede Jovem e Missões com "Quero participar", aniversariantes do mês.
 
-**Equipe de mídia:** live pelo YouTube ou pela câmera do celular (Cloudflare Stream), envio de vídeos curtos,
+**Equipe de mídia:** live pelo YouTube, envio de vídeos curtos,
 álbuns de fotos.
 
 **Liderança e administração:** aprovação de cadastros, papéis (membro, mídia, liderança, administrador), avisos,
@@ -58,7 +58,6 @@ de novo a partir do eBible.org: `npm run biblia`.
 | Notificações no celular | Grátis |
 | Fotos sem R2 (ficam no banco) | Grátis, até cerca de 1.000–2.000 fotos (limite de 500 MB) |
 | R2 para fotos e vídeos (opcional) | 10 GB grátis por mês, depois cerca de US$ 0,015 por GB |
-| Live pela câmera do app (opcional, Cloudflare Stream) | Cerca de US$ 1 a cada 1.000 minutos assistidos |
 | Live pelo YouTube | Grátis |
 
 ## Publicar o app (passo a passo)
@@ -131,12 +130,6 @@ Mande o link no grupo de WhatsApp e no Instagram (o link já gera uma prévia bo
 3. A Cloudflare publica de novo sozinha e o botão "Enviar do celular" em Vídeos é liberado. As fotos antigas continuam
    funcionando.
 
-### Opcional: live pela câmera do app (Cloudflare Stream)
-
-1. Cloudflare → **Stream** (assine se pedir) → **Live inputs → Create live input**.
-2. Abra a live input, aba **WebRTC**, copie a URL de Broadcast (WHIP) e a de Playback (WHEP).
-3. No app: Configurações → Transmissão → cole as duas e salve. Em **Ao vivo** aparece "Câmera do app".
-
 ### Lives pelo YouTube
 
 Para transmitir pelo celular, o YouTube exige 50 inscritos no canal (o canal da igreja tinha 47 em outubro de 2026);
@@ -193,13 +186,11 @@ irn-app/
 │   │   ├── image.ts           reduz fotos no celular antes de enviar
 │   │   ├── upload.ts          envio de fotos e de vídeos em partes
 │   │   ├── push.ts            ativar e escolher notificações
-│   │   ├── webrtc.ts          transmitir e assistir pela câmera (Cloudflare Stream)
 │   │   ├── ics.ts             "Adicionar à agenda" e compartilhar
 │   │   └── types.ts           formatos dos dados
 │   └── pages/
 │       ├── Home.tsx           Início
 │       ├── Live.tsx           Ao vivo (YouTube ou câmera) e histórico de lives
-│       ├── Broadcast.tsx      Transmitir pela câmera do celular
 │       ├── Videos.tsx         Vídeos (YouTube e enviados pelo app)
 │       ├── Photos.tsx         Biblioteca de fotos, álbuns, envio e visualizador
 │       ├── Agenda.tsx         Agenda, evento e confirmação de presença
@@ -253,7 +244,6 @@ irn-app/
 |---|---|---|
 | `/` | Início: live, próximo culto, atalhos, Palavra, avisos, eventos, fotos, vídeos, aniversariantes | Todos |
 | `/ao-vivo` | Ao vivo (player e controles da equipe de mídia) | Todos |
-| `/transmitir` | Transmitir pela câmera | Mídia |
 | `/videos`, `/videos/:id` | Vídeos (YouTube e enviados pelo app) | Todos (vídeos "só membros" para membros) |
 | `/fotos`, `/fotos/album/:id` | Biblioteca de fotos | Membros |
 | `/agenda`, `/agenda/:id` | Agenda e evento | Todos |

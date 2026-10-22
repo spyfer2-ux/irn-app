@@ -217,13 +217,13 @@ adminRoutes.get('/membros.csv', async (c) => {
 
 adminRoutes.get('/config', async (c) => {
   needAdmin(c);
-  const s = await getSettings(c.env, ['church', 'schedule', 'giving', 'stream', 'youtube', 'reminders']);
+  const s = await getSettings(c.env, ['church', 'schedule', 'giving', 'youtube', 'reminders']);
   return c.json({ ...s, storage_mode: storageMode(c.env), video_upload: !!c.env.BUCKET });
 });
 
 adminRoutes.put('/config/:key', async (c) => {
   const me = needAdmin(c);
-  const key = oneOf(c.req.param('key'), ['church', 'schedule', 'giving', 'stream', 'youtube', 'reminders'] as const, 'configuração');
+  const key = oneOf(c.req.param('key'), ['church', 'schedule', 'giving', 'youtube', 'reminders'] as const, 'configuração');
   const b = await body(c);
   let value: unknown;
   if (key === 'church') {
@@ -309,19 +309,6 @@ adminRoutes.put('/config/:key', async (c) => {
       message: str(b.message, 300) ?? '',
       types: types.length ? types : ['Dízimo', 'Oferta'],
     };
-  } else if (key === 'stream') {
-    const whip = httpsUrl(b.whip_url, 'endereço de transmissão (WHIP)') ?? '';
-    const whep = httpsUrl(b.whep_url, 'endereço de reprodução (WHEP)') ?? '';
-    for (const [u, label] of [
-      [whip, 'WHIP'],
-      [whep, 'WHEP'],
-    ] as const) {
-      if (u && !/^https:\/\/[a-z0-9.-]+\.cloudflarestream\.com\//i.test(u))
-        fail(400, `O endereço ${label} precisa ser do Cloudflare Stream (…cloudflarestream.com).`);
-    }
-    if (whip && !whip.includes('/webRTC/publish')) fail(400, 'O endereço WHIP deve terminar em /webRTC/publish.');
-    if (whep && !whep.includes('/webRTC/play')) fail(400, 'O endereço WHEP deve terminar em /webRTC/play.');
-    value = { whip_url: whip, whep_url: whep };
   } else if (key === 'youtube') {
     const cur = (await getSettings(c.env, ['youtube'])).youtube;
     value = { ...cur, auto_import: bool(b.auto_import) };

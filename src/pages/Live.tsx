@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, ExternalLink, History, Radio, Square, Volume2, MonitorPlay } from 'lucide-react';
+import { ExternalLink, History, Radio, Square, MonitorPlay } from 'lucide-react';
 import { useSession } from '../lib/session';
 import { api, useApi } from '../lib/api';
 import type { HomeData, Live, Video } from '../lib/types';
 import { hourLabel, relativeDay, timeOf, WEEKDAYS } from '../lib/format';
 import { helpDrain } from '../lib/push';
-import { Player } from '../lib/webrtc';
-import { Button, confirmDialog, Page, Section, Seg, TextField, Toggle, useAction } from '../components/ui';
+import { Button, confirmDialog, Page, Section, TextField, Toggle, useAction } from '../components/ui';
 import { useLiveState } from '../components/Layout';
 import { VideoCard } from '../components/cards';
 
@@ -28,65 +27,7 @@ export function YouTubeLive({ live }: { live: Live }) {
   );
 }
 
-function AppLivePlayer({ url }: { url: string }) {
-  const video = useRef<HTMLVideoElement>(null);
-  const [state, setState] = useState<'conectando' | 'aovivo' | 'aguardando'>('conectando');
-  const [muted, setMuted] = useState(true);
-  useEffect(() => {
-    let stopped = false;
-    let player: Player | null = null;
-    let timer: ReturnType<typeof setTimeout>;
-    const connect = async () => {
-      if (stopped || !video.current) return;
-      player = new Player();
-      player.onState = (s) => {
-        if (s === 'connected') setState('aovivo');
-        if (s === 'failed' || s === 'disconnected' || s === 'closed') {
-          if (stopped) return;
-          setState('aguardando');
-          void player?.stop();
-          timer = setTimeout(connect, 4000);
-        }
-      };
-      try {
-        setState((st) => (st === 'aovivo' ? st : 'conectando'));
-        await player.start(url, video.current);
-      } catch {
-        setState('aguardando');
-        await player?.stop();
-        if (!stopped) timer = setTimeout(connect, 5000);
-      }
-    };
-    void connect();
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-      void player?.stop();
-    };
-  }, [url]);
-  return (
-    <div className="player player-full">
-      <video ref={video} autoPlay playsInline muted={muted} controls={state === 'aovivo'} />
-      {state !== 'aovivo' && (
-        <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff', textAlign: 'center', padding: 20 }}>
-          <div>
-            <Radio className="spin" style={{ animationDuration: '3s', margin: '0 auto 8px' }} />
-            {state === 'conectando' ? 'Conectando à transmissão…' : 'Aguardando a transmissão começar…'}
-          </div>
-        </div>
-      )}
-      {state === 'aovivo' && muted && (
-        <button className="btn btn-white btn-sm" style={{ position: 'absolute', left: 12, bottom: 12 }} onClick={() => setMuted(false)}>
-          <Volume2 /> Ativar som
-        </button>
-      )}
-    </div>
-  );
-}
-
 function LiveControls({ live, onChange }: { live: Live | null; onChange: () => Promise<void> }) {
-  const { features, isAdmin } = useSession();
-  const [source, setSource] = useState<'youtube' | 'app'>('youtube');
   const wd = WEEKDAYS[new Date().getDay()];
   const [title, setTitle] = useState(`Culto de ${wd}`);
   const [url, setUrl] = useState('');
@@ -98,15 +39,8 @@ function LiveControls({ live, onChange }: { live: Live | null; onChange: () => P
       <div className="card card-pad stack">
         <div className="row">
           <span className="badge live">AO VIVO</span>
-          <span className="small muted">
-            desde {timeOf(live.started_at)} · {live.source === 'app' ? 'câmera do app' : 'YouTube'}
-          </span>
+          <span className="small muted">desde {timeOf(live.started_at)} · YouTube</span>
         </div>
-        {live.source === 'app' && (
-          <Link className="btn btn-secondary" to="/transmitir">
-            <Camera /> Abrir a tela de transmissão
-          </Link>
-        )}
         <Button
           variant="danger"
           icon={<Square />}
@@ -128,60 +62,33 @@ function LiveControls({ live, onChange }: { live: Live | null; onChange: () => P
   return (
     <div className="card card-pad stack">
       <div style={{ fontWeight: 650 }}>Começar uma live</div>
-      <Seg
-        value={source}
-        onChange={setSource}
-        options={[
-          { value: 'youtube', label: 'Pelo YouTube' },
-          { value: 'app', label: 'Câmera do app' },
-        ]}
+      <p className="small muted">
+        Comece a live no YouTube (celular ou computador) e depois avise aqui. O app mostra o vídeo para todos e manda a notificação.
+      </p>
+      <TextField label="Título" value={title} onChange={setTitle} maxLength={120} />
+      <TextField
+        label="Link da live no YouTube (opcional)"
+        value={url}
+        onChange={setUrl}
+        placeholder="https://youtube.com/live/…"
+        hint="No YouTube: Compartilhar → Copiar link. Se ficar vazio, o app mostra a live atual do canal da igreja."
+        inputMode="url"
       />
-      {source === 'youtube' ? (
-        <>
-          <p className="small muted">
-            Comece a live no YouTube (celular ou computador) e depois avise aqui. O app mostra o vídeo para todos e manda a notificação.
-          </p>
-          <TextField label="Título" value={title} onChange={setTitle} maxLength={120} />
-          <TextField
-            label="Link da live no YouTube (opcional)"
-            value={url}
-            onChange={setUrl}
-            placeholder="https://youtube.com/live/…"
-            hint="No YouTube: Compartilhar → Copiar link. Se ficar vazio, o app mostra a live atual do canal da igreja."
-            inputMode="url"
-          />
-          <Toggle label="Avisar todo mundo (notificação no celular)" checked={notify} onChange={setNotify} />
-          <Button
-            variant="live"
-            icon={<MonitorPlay />}
-            loading={busy}
-            onClick={() =>
-              void run(async () => {
-                await api('/live/iniciar', { method: 'POST', body: { source: 'youtube', title, youtube_url: url, notify } });
-                await onChange();
-                if (notify) void helpDrain();
-              }, 'Live no ar no app!')
-            }
-          >
-            Estamos ao vivo
-          </Button>
-        </>
-      ) : features.stream_ready ? (
-        <>
-          <p className="small muted">Transmite direto da câmera deste celular, sem YouTube. Use Wi-Fi e deixe o celular na horizontal, de preferência num tripé.</p>
-          <Link className="btn btn-live" to="/transmitir">
-            <Camera /> Abrir câmera para transmitir
-          </Link>
-        </>
-      ) : (
-        <div className="alert warn">
-          <Camera />
-          <div>
-            A transmissão pela câmera do app ainda não foi configurada.{' '}
-            {isAdmin ? <Link to="/admin/config?aba=transmissao">Configurar agora</Link> : 'Peça ao administrador do app.'}
-          </div>
-        </div>
-      )}
+      <Toggle label="Avisar todo mundo (notificação no celular)" checked={notify} onChange={setNotify} />
+      <Button
+        variant="live"
+        icon={<MonitorPlay />}
+        loading={busy}
+        onClick={() =>
+          void run(async () => {
+            await api('/live/iniciar', { method: 'POST', body: { source: 'youtube', title, youtube_url: url, notify } });
+            await onChange();
+            if (notify) void helpDrain();
+          }, 'Live no ar no app!')
+        }
+      >
+        Estamos ao vivo
+      </Button>
     </div>
   );
 }
@@ -212,7 +119,7 @@ export default function LivePage() {
       <div className="stack-lg">
         {live?.active ? (
           <div className="stack">
-            {live.source === 'app' && live.whep_url ? <AppLivePlayer url={live.whep_url} /> : <YouTubeLive live={live} />}
+            <YouTubeLive live={live} />
             <div className="row-between">
               <div className="grow">
                 <span className="badge live">AO VIVO</span>
@@ -302,7 +209,9 @@ export function LiveHistory() {
         <div className="list">
           {(data?.lives ?? []).map((l) => (
             <div key={l.id} className="list-item" style={{ cursor: 'default' }}>
-              <div className={`icon-tile ${l.ended_at ? 'gray' : 'live'}`}>{l.source === 'app' ? <Camera /> : <MonitorPlay />}</div>
+              <div className={`icon-tile ${l.ended_at ? 'gray' : 'live'}`}>
+                <MonitorPlay />
+              </div>
               <div className="grow">
                 <div style={{ fontWeight: 600 }}>{l.title}</div>
                 <div className="small muted">

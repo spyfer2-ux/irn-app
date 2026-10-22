@@ -65,7 +65,6 @@ export interface Features {
   dev_login: boolean;
   storage: 'r2' | 'd1';
   video_upload: boolean;
-  stream_ready: boolean;
   giving_public: boolean;
 }
 
@@ -79,13 +78,11 @@ export interface Boot {
 
 export interface Live {
   active: boolean;
-  source: 'youtube' | 'app' | '';
+  source: 'youtube' | '';
   title: string;
   youtube_id: string;
   started_at: number;
   channel_id: string;
-  whep_url: string;
-  app_ready: boolean;
 }
 
 export interface Video {

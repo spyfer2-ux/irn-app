@@ -9,7 +9,6 @@ import {
   BookOpenText,
   Cake,
   CalendarDays,
-  Camera,
   ChevronRight,
   Church as ChurchIcon,
   ClipboardList,
@@ -702,7 +701,6 @@ export function More() {
   ];
   const team: Item[] = isMedia
     ? [
-        { to: '/transmitir', label: 'Transmitir pela câmera', icon: <Camera />, tone: 'live' },
         { to: '/ao-vivo/historico', label: 'Histórico de lives', icon: <History /> },
       ]
     : [];

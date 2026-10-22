@@ -51,7 +51,7 @@ export function Layout({ children }: { children: ReactNode }) {
     window.scrollTo(0, 0);
   }, [pathname]);
 
-  const hideTabs = pathname.startsWith('/transmitir');
+  const hideTabs = false;
   const tabs = isMember
     ? [
         { to: '/', label: 'Início', icon: <Home />, end: true },

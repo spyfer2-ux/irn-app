@@ -23,7 +23,6 @@ import { MarkedVerses } from './pages/BibleMarks';
 import { Birthdays, Inbox, Login, More, NotFound, Pending, Profile } from './pages/Account';
 
 const Giving = lazy(() => import('./pages/Giving'));
-const Broadcast = lazy(() => import('./pages/Broadcast'));
 const admin = () => import('./pages/Admin');
 const AdminHome = lazy(() => admin().then((m) => ({ default: m.AdminHome })));
 const AdminMembers = lazy(() => admin().then((m) => ({ default: m.AdminMembers })));
@@ -65,7 +64,6 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/" element={<Home />} />
               <Route path="/ao-vivo" element={<LivePage />} />
               <Route path="/ao-vivo/historico" element={<LiveHistory />} />
-              <Route path="/transmitir" element={<Broadcast />} />
               <Route path="/videos" element={<Videos />} />
               <Route path="/videos/:id" element={<VideoDetail />} />
               <Route path="/fotos" element={<Photos />} />
