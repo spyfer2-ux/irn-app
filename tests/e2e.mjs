@@ -630,6 +630,28 @@ await check('membro: atalho Cultos abre os vídeos dos cultos', async () => {
   await m.locator('.video-card').first().waitFor();
 });
 
+await check('mídia: ajusta a capa do vídeo antes de publicar', async () => {
+  await a.goto(BASE + '/videos');
+  await a.getByRole('button', { name: 'Adicionar' }).click();
+  const d = dialog(a);
+  await d.getByLabel(/Link do vídeo/).fill('https://youtu.be/CaPa1234567');
+  await d.getByLabel(/Título/).fill('Culto com capa escolhida');
+  await d.locator('input[type=file]').setInputFiles(resolve(FIX, 'foto1.jpg'));
+  // Abre a tela de ajuste: aproxima um pouco e confirma.
+  const editor = a.getByRole('dialog').last();
+  await editor.getByText('Ajustar a capa').waitFor();
+  await editor.getByLabel('Aproximar a capa').fill('0.6');
+  await shot(a, '26-ajustar-capa.png');
+  await editor.getByRole('button', { name: 'Usar esta capa' }).click();
+  // Com a capa pronta, o botão de trocar aparece no lugar da área de escolher.
+  await dialog(a).getByRole('button', { name: 'Trocar imagem' }).waitFor({ timeout: 20000 });
+  await dialog(a).getByRole('button', { name: 'Adicionar' }).click();
+  await a.waitForURL(/\/videos\/\d+$/);
+  await a.goto(BASE + '/videos');
+  const capa = await a.locator('.video-highlight .thumb img, .video-grid .thumb img').first().getAttribute('src');
+  if (!capa || !capa.startsWith('/api/media/')) throw new Error('a capa escolhida não apareceu na lista: ' + capa);
+});
+
 await browser.close();
 console.log('\n================ RESULTADO ================');
 console.log(`Falhas: ${failures.length}`);
