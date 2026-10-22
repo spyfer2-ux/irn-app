@@ -99,6 +99,8 @@ export interface Video {
   visibility: Visibility;
   hidden: number;
   vertical: number;
+  /** Dia do culto (AAAA-MM-DD), para a agenda. Vazio = vale a data de publicação. */
+  service_on: string | null;
   published_at: number;
   created_at: number;
 }
