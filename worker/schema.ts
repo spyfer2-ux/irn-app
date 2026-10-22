@@ -506,7 +506,10 @@ const V8 = [
   'ALTER TABLE testimonies ADD COLUMN video_vertical INTEGER NOT NULL DEFAULT 0',
 ];
 
-export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5, V6, V7, V8];
+// V9: data do culto no vídeo, para a agenda de cultos.
+const V9 = ['ALTER TABLE videos ADD COLUMN service_on TEXT'];
+
+export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5, V6, V7, V8, V9];
 
 let ready: Promise<void> | null = null;
 

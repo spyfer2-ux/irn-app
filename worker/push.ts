@@ -176,6 +176,8 @@ async function sendOne(
         Urgency: urgency === 'high' ? 'high' : 'normal',
       },
       body: bodyBytes,
+      // Aparelho fora do ar não pode segurar o envio dos outros: desiste em 10s e tenta de novo depois.
+      signal: AbortSignal.timeout(10_000),
     });
     if (res.status === 404 || res.status === 410) return 'gone';
     if (res.ok) return 'ok';
