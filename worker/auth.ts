@@ -24,6 +24,7 @@ import {
   utf8,
 } from './util';
 import { notifyNow } from './push';
+import { fetchChannel, forgetAccount, hasYoutubeScope, saveAccount, YT_SCOPE, YtError, type Channel } from './youtube';
 
 const SESSION_COOKIE = 'irn_s';
 const OAUTH_COOKIE = 'irn_o';
@@ -252,19 +253,103 @@ authRoutes.get('/google/start', async (c) => {
   return c.redirect(`${provider(c.env).auth}?${params}`);
 });
 
+/** Junta "?yt=ok" (ou "&yt=ok") ao endereço de volta. */
+function withQuery(path: string, key: string, value: string): string {
+  return `${path}${path.includes('?') ? '&' : '?'}${key}=${encodeURIComponent(value)}`;
+}
+
+/**
+ * Conectar o YouTube da pessoa (para a live pela câmera do app). Usa o mesmo login do Google e o mesmo endereço de
+ * retorno, só pedindo a mais a permissão do YouTube, com acesso offline (refresh token).
+ */
+authRoutes.get('/youtube/start', async (c) => {
+  const ret = safeReturn(c.req.query('voltar') ?? '/ao-vivo/transmitir');
+  if (!googleConfigured(c.env)) return c.redirect(withQuery(ret, 'yt', 'config'));
+  const u = c.get('user');
+  if (!u || u.status !== 'aprovado') return c.redirect(`/entrar?voltar=${encodeURIComponent(ret)}`);
+  const state = randomToken(16);
+  const verifier = randomToken(32);
+  const nonce = randomToken(16);
+  const challenge = bytesToB64url(new Uint8Array(await crypto.subtle.digest('SHA-256', utf8(verifier))));
+  setCookie(c, OAUTH_COOKIE, [state, verifier, nonce, bytesToB64url(utf8(ret)), 'yt'].join('.'), cookieOpts(600, '/api/auth'));
+  const params = new URLSearchParams({
+    client_id: c.env.GOOGLE_CLIENT_ID!,
+    redirect_uri: `${originOf(c)}/api/auth/google/callback`,
+    response_type: 'code',
+    scope: `openid email ${YT_SCOPE}`,
+    state,
+    nonce,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    access_type: 'offline',
+    prompt: 'consent select_account',
+    include_granted_scopes: 'true',
+    login_hint: u.email,
+  });
+  return c.redirect(`${provider(c.env).auth}?${params}`);
+});
+
+async function connectYoutube(c: Ctx, code: string, verifier: string, nonce: string, ret: string) {
+  const u = c.get('user');
+  if (!u || u.status !== 'aprovado') return c.redirect(`/entrar?voltar=${encodeURIComponent(ret)}`);
+  try {
+    const res = await fetch(provider(c.env).token, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: c.env.GOOGLE_CLIENT_ID!,
+        client_secret: c.env.GOOGLE_CLIENT_SECRET!,
+        redirect_uri: `${originOf(c)}/api/auth/google/callback`,
+        grant_type: 'authorization_code',
+        code_verifier: verifier,
+      }),
+    });
+    if (!res.ok) {
+      console.error('youtube: troca de código falhou', res.status, (await res.text()).slice(0, 300));
+      return c.redirect(withQuery(ret, 'yt', 'erro'));
+    }
+    const tok = (await res.json()) as { access_token?: string; refresh_token?: string; expires_in?: number; scope?: string; id_token?: string };
+    if (!tok.access_token) return c.redirect(withQuery(ret, 'yt', 'erro'));
+    if (!hasYoutubeScope(tok.scope)) return c.redirect(withQuery(ret, 'yt', 'sem_permissao'));
+    if (!tok.refresh_token) return c.redirect(withQuery(ret, 'yt', 'erro'));
+    let email: string | null = null;
+    if (tok.id_token) email = (await verifyIdToken(c.env, tok.id_token, nonce)).email ?? null;
+    let channel: Channel | null = null;
+    try {
+      channel = await fetchChannel(c.env, tok.access_token);
+    } catch (e) {
+      if (e instanceof YtError && (e.reason === 'accessNotConfigured' || e.reason === 'SERVICE_DISABLED'))
+        return c.redirect(withQuery(ret, 'yt', 'api_desligada'));
+      if (!(e instanceof YtError) || (e.reason !== 'youtubeSignupRequired' && e.reason !== 'channelNotFound')) throw e;
+    }
+    await saveAccount(c.env, u.id, { email, channel, refresh: tok.refresh_token, access: tok.access_token, expiresIn: tok.expires_in ?? 3600 });
+    await auditLog(c, u.id, 'youtube_conectado', `${email ?? ''} → ${channel?.title ?? 'sem canal'}`).run();
+    return c.redirect(withQuery(ret, 'yt', channel ? 'ok' : 'sem_canal'));
+  } catch (e) {
+    console.error('youtube: conectar', String(e));
+    return c.redirect(withQuery(ret, 'yt', 'erro'));
+  }
+}
+
 authRoutes.get('/google/callback', async (c) => {
   const q = c.req.query();
   const cookie = getCookie(c, OAUTH_COOKIE) ?? '';
   deleteCookie(c, OAUTH_COOKIE, { path: '/api/auth', secure: true });
-  if (q.error) return c.redirect(`/entrar?erro=${q.error === 'access_denied' ? 'cancelado' : 'google'}`);
-  const [state, verifier, nonce, retB64] = cookie.split('.');
-  if (!state || !q.state || state !== q.state || !q.code) return c.redirect('/entrar?erro=expirou');
+  const [state, verifier, nonce, retB64, mode] = cookie.split('.');
   let ret = '/';
   try {
     ret = safeReturn(fromUtf8(b64urlToBytes(retB64 ?? '')));
   } catch {
     /* mantém "/" */
   }
+  if (mode === 'yt') {
+    if (q.error) return c.redirect(withQuery(ret, 'yt', q.error === 'access_denied' ? 'cancelado' : 'erro'));
+    if (!state || !q.state || state !== q.state || !q.code) return c.redirect(withQuery(ret, 'yt', 'expirou'));
+    return connectYoutube(c, q.code, verifier, nonce, ret);
+  }
+  if (q.error) return c.redirect(`/entrar?erro=${q.error === 'access_denied' ? 'cancelado' : 'google'}`);
+  if (!state || !q.state || state !== q.state || !q.code) return c.redirect('/entrar?erro=expirou');
   try {
     const res = await fetch(provider(c.env).token, {
       method: 'POST',
@@ -396,7 +481,9 @@ meRoutes.post('/excluir', async (c) => {
 
 /** Apaga a pessoa e o que é pessoal dela. Fotos da biblioteca e registros financeiros ficam, sem o vínculo. */
 export async function deleteUserCascade(env: Env, userId: number, name: string) {
+  await forgetAccount(env, userId).catch((e) => console.error('desconectar youtube', String(e)));
   const stmts = [
+    "UPDATE live_sessions SET status = 'encerrada', ended_at = COALESCE(ended_at, CAST(strftime('%s', 'now') AS INTEGER) * 1000) WHERE user_id = ?",
     'DELETE FROM sessions WHERE user_id = ?',
     'DELETE FROM push_subs WHERE user_id = ?',
     'DELETE FROM event_rsvps WHERE user_id = ?',

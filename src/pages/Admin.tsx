@@ -1468,9 +1468,17 @@ function YoutubeForm({ cfg, onSaved }: { cfg: Config; onSaved: () => void }) {
       <div className="card card-pad small stack" style={{ color: 'var(--ink-2)' }}>
         <div style={{ fontWeight: 650, color: 'var(--ink)' }}>Lives pelo YouTube</div>
         <p>
-          Para transmitir pelo celular, o YouTube exige pelo menos 50 inscritos no canal (pelo computador, com OBS ou outro programa, não há esse mínimo).
-          Depois de começar a live no YouTube, a equipe de mídia toca em "Estamos ao vivo" na tela Ao vivo do app: o vídeo aparece para todos e sai a
+          <b>Pela câmera do app:</b> qualquer membro aprovado toca em Ao vivo → “Transmitir pelo celular”, conecta o YouTube da própria conta Google e
+          transmite. A live sai no canal dessa pessoa (não precisa da senha do canal da igreja nem de 50 inscritos) e aparece no app para todos, com
           notificação.
+        </p>
+        <p>
+          Para funcionar, ative uma vez no Google Cloud do login: a <b>YouTube Data API v3</b> (APIs e serviços → Biblioteca) e o escopo{' '}
+          <code>https://www.googleapis.com/auth/youtube</code> (Google Auth Platform → Acesso a dados). O passo a passo está no README do projeto.
+        </p>
+        <p>
+          <b>Por link:</b> se alguém já está ao vivo no YouTube por outro canal ou programa, a equipe de mídia cola o link em Ao vivo → “Já está ao vivo
+          no YouTube por outro canal?”.
         </p>
       </div>
     </div>

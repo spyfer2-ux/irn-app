@@ -509,7 +509,46 @@ const V8 = [
 // V9: data do culto no vídeo, para a agenda de cultos.
 const V9 = ['ALTER TABLE videos ADD COLUMN service_on TEXT'];
 
-export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5, V6, V7, V8, V9];
+// V10: live pela câmera do app, no canal do YouTube de cada pessoa.
+const V10 = [
+  // Conta do YouTube conectada (tokens e chave de transmissão ficam criptografados)
+  `CREATE TABLE IF NOT EXISTS yt_accounts (
+    user_id INTEGER PRIMARY KEY,
+    email TEXT,
+    channel_id TEXT,
+    channel_title TEXT,
+    channel_thumb TEXT,
+    refresh_enc TEXT NOT NULL,
+    access_enc TEXT,
+    access_exp INTEGER NOT NULL DEFAULT 0,
+    stream_id TEXT,
+    stream_key_enc TEXT,
+    ingest_rtmps TEXT,
+    ingest_rtmp TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  // Cada live criada pelo app no YouTube: preparada → no_ar → encerrada
+  `CREATE TABLE IF NOT EXISTS live_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    broadcast_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    privacy TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    notify INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'preparada',
+    live_id INTEGER,
+    relay_seen_at INTEGER,
+    inactive_since INTEGER,
+    created_at INTEGER NOT NULL,
+    ended_at INTEGER
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_live_sessions_status ON live_sessions(status, created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_live_sessions_user ON live_sessions(user_id, status)`,
+];
+
+export const MIGRATIONS: string[][] = [V1, V2, V3, V4, V5, V6, V7, V8, V9, V10];
 
 let ready: Promise<void> | null = null;
 

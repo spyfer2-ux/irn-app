@@ -223,6 +223,12 @@ export function Privacy() {
           são vistos apenas pela liderança. Os registros de dízimos e ofertas e os comprovantes são vistos só por você e pela administração. Seu
           aniversário (dia e mês) aparece para os membros, se você deixar essa opção ligada no perfil.
         </p>
+        <h3 style={{ color: 'var(--ink)', fontSize: 16 }}>Lives pelo YouTube</h3>
+        <p>
+          Se você conectar o seu YouTube para transmitir pela câmera do app, guardamos (criptografada) a permissão que o Google dá para o app criar e
+          encerrar lives no seu canal, além do nome do canal. Não publicamos nada além das lives que você começar. Você pode desconectar quando quiser
+          na tela Transmitir; ao excluir a conta, a permissão é apagada e devolvida ao Google.
+        </p>
         <h3 style={{ color: 'var(--ink)', fontSize: 16 }}>Fotos</h3>
         <p>
           Ao enviar uma foto, você confirma que as pessoas que aparecem concordam. Fotos de crianças só com autorização dos responsáveis. Se você

@@ -16,6 +16,10 @@ export interface Env {
   OIDC_TOKEN_URL?: string;
   OIDC_JWKS_URL?: string;
   OIDC_ISSUER?: string;
+  /** Ponte da live pela câmera do app (Durable Object LiveRelay, ver wrangler.jsonc). */
+  LIVE_RELAY?: DurableObjectNamespace;
+  /** Só para testes automatizados: troca o endereço da API do YouTube por um servidor de mentira. */
+  YOUTUBE_API_URL?: string;
 }
 
 export type Role = 'membro' | 'midia' | 'lider' | 'admin';

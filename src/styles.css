@@ -1761,6 +1761,81 @@ a.stat {
   justify-content: space-between;
   gap: 8px;
 }
+.broadcast-stage.mirror video {
+  transform: scaleX(-1);
+}
+.stage-hint {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Tela "Transmitir" (cobre o app inteiro, abaixo das janelas de confirmação e dos avisos) */
+.studio {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg);
+  padding: calc(var(--safe-t) + 10px) 16px calc(var(--safe-b) + 28px);
+}
+.studio-in {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.studio-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.studio-top h1 {
+  font-size: 22px;
+}
+.channel-thumb {
+  border-radius: 999px;
+  flex: none;
+  object-fit: cover;
+}
+.steps {
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--ink-2);
+}
+.keybox {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  word-break: break-all;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--ink);
+}
+details.card > summary {
+  list-style: none;
+}
+details.card > summary::-webkit-details-marker {
+  display: none;
+}
+details.card > summary::after {
+  content: ' ▸';
+  color: var(--ink-3);
+}
+details.card[open] > summary::after {
+  content: ' ▾';
+}
 .notif-dot {
   width: 9px;
   height: 9px;

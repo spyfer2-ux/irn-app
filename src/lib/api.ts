@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Código curto mandado pelo servidor em alguns erros (ex.: "live_desativada"). */
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -42,7 +45,10 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
   }
   const isJson = res.headers.get('content-type')?.includes('json');
   const data = isJson ? await res.json().catch(() => null) : null;
-  if (!res.ok) throw new ApiError((data as { error?: string } | null)?.error ?? `Erro ${res.status}`, res.status);
+  if (!res.ok) {
+    const d = data as { error?: string; code?: string } | null;
+    throw new ApiError(d?.error ?? `Erro ${res.status}`, res.status, d?.code);
+  }
   return data as T;
 }
 

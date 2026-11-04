@@ -2,14 +2,17 @@ import type { Ctx, Env, User } from './types';
 
 export class HttpError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  /** Código curto para a tela saber o que mostrar (ex.: "live_desativada"). */
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
-export function fail(status: number, message: string): never {
-  throw new HttpError(status, message);
+export function fail(status: number, message: string, code?: string): never {
+  throw new HttpError(status, message, code);
 }
 
 export const now = () => Date.now();

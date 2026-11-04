@@ -264,6 +264,8 @@ await check('admin: cria campanha', async () => {
 });
 await check('mídia: avisa que está ao vivo pelo YouTube', async () => {
   await a.goto(BASE + '/ao-vivo');
+  await a.getByText('Transmitir pelo celular').waitFor();
+  await a.getByText('Já está ao vivo no YouTube por outro canal?').click();
   await a.getByLabel('Título').fill('Culto de Sexta');
   await a.getByLabel('Link da live no YouTube (opcional)').fill('https://youtu.be/lkpfxNXXI3I');
   await a.getByRole('button', { name: 'Estamos ao vivo' }).click();
