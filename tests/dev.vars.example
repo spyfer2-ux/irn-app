@@ -5,3 +5,4 @@ OIDC_AUTH_URL=http://127.0.0.1:9555/auth
 OIDC_TOKEN_URL=http://127.0.0.1:9555/token
 OIDC_JWKS_URL=http://127.0.0.1:9555/jwks
 OIDC_ISSUER=http://127.0.0.1:9555
+YOUTUBE_API_URL=http://127.0.0.1:9555/youtube/v3

@@ -18,6 +18,11 @@
   // (10 GB grátis) e tire as duas barras do começo da linha abaixo.
   "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "irn-app-midia" }],
 
+  // Live pela câmera do app: a "ponte" que liga o celular ao servidor do YouTube (Durable Object com SQLite,
+  // liberado no plano grátis). Não grava nada: só repassa os bytes da transmissão.
+  "durable_objects": { "bindings": [{ "name": "LIVE_RELAY", "class_name": "LiveRelay" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveRelay"] }],
+
   // Roda a cada 5 minutos: lembretes de culto e de eventos, Palavra do dia, vídeos novos do YouTube, limpeza.
   "triggers": { "crons": ["*/5 * * * *"] },
 
