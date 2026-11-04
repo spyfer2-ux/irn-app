@@ -78,10 +78,13 @@ app.all('/api/*', (c) => c.json({ error: 'Não encontrado.' }, 404));
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 app.onError((err, c) => {
-  if (err instanceof HttpError) return c.json({ error: err.message }, err.status as 400);
+  if (err instanceof HttpError) return c.json(err.code ? { error: err.message, code: err.code } : { error: err.message }, err.status as 400);
   console.error('erro', err);
   return c.json({ error: 'Algo deu errado do nosso lado. Tente de novo em instantes.' }, 500);
 });
+
+// Ponte da live pela câmera do app (Durable Object): precisa ser exportada aqui para a Cloudflare encontrar.
+export { LiveRelay } from './relay';
 
 export default {
   fetch: app.fetch,

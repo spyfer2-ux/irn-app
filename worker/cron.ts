@@ -6,13 +6,13 @@
  * - parabeniza aniversariantes e avisa a liderança;
  * - busca vídeos novos do canal do YouTube (1 vez por hora);
  * - busca os Shorts novos do canal oficial de The Chosen (a cada 3 horas);
- * - encerra lives esquecidas abertas e faz a limpeza diária.
+ * - encerra lives esquecidas abertas, confere no YouTube as lives feitas pela câmera do app e faz a limpeza diária.
  */
 import type { Env } from './types';
 import { now, nextCults, spParts } from './util';
 import { getSettings } from './settings';
 import { drain, notify } from './push';
-import { endLive } from './routes/live';
+import { endLive, sweepSessions } from './routes/live';
 import { syncYoutube } from './routes/videos';
 import { syncChosen } from './routes/chosen';
 import { fmtWhen } from './routes/community';
@@ -146,6 +146,10 @@ export async function runCron(env: Env, at = now()): Promise<void> {
 
   await step('live esquecida', async () => {
     if (live.active && at - live.started_at > 5 * 3600_000) await endLive(env, null);
+  });
+
+  await step('lives pela câmera do app', async () => {
+    await sweepSessions(env, origin, at);
   });
 
   await step('youtube', async () => {
