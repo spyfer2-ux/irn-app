@@ -83,6 +83,10 @@ export interface Live {
   youtube_id: string;
   started_at: number;
   channel_id: string;
+  /** A live foi começada por mim. */
+  mine?: boolean;
+  /** Posso encerrar (comecei a live ou sou da equipe de mídia). */
+  can_end?: boolean;
 }
 
 export interface Video {
