@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, History, Radio, Square, MonitorPlay } from 'lucide-react';
+import { ExternalLink, History, Radio, Square, MonitorPlay, Video as VideoIcon } from 'lucide-react';
 import { useSession } from '../lib/session';
 import { api, useApi } from '../lib/api';
 import type { HomeData, Live, Video } from '../lib/types';
@@ -27,43 +27,75 @@ export function YouTubeLive({ live }: { live: Live }) {
   );
 }
 
-function LiveControls({ live, onChange }: { live: Live | null; onChange: () => Promise<void> }) {
+/** Quem começou a live (ou a equipe de mídia) pode encerrar. */
+function EndLiveCard({ live, onChange }: { live: Live; onChange: () => Promise<void> }) {
+  const { busy, run } = useAction();
+  return (
+    <div className="card card-pad stack">
+      <div className="row">
+        <span className="badge live">AO VIVO</span>
+        <span className="small muted">desde {timeOf(live.started_at)} · YouTube</span>
+      </div>
+      {live.mine && (
+        <Link className="btn btn-secondary" to="/ao-vivo/transmitir">
+          <VideoIcon /> Voltar para a transmissão
+        </Link>
+      )}
+      <Button
+        variant="danger"
+        icon={<Square />}
+        loading={busy}
+        onClick={async () => {
+          if (
+            !(await confirmDialog({
+              title: 'Encerrar a live?',
+              text: 'A live sai do app para todos (e, se foi feita pela câmera do app, termina também no YouTube).',
+              confirmLabel: 'Encerrar',
+              danger: true,
+            }))
+          )
+            return;
+          await run(async () => {
+            await api('/live/encerrar', { method: 'POST' });
+            await onChange();
+          }, 'Live encerrada.');
+        }}
+      >
+        Encerrar live
+      </Button>
+    </div>
+  );
+}
+
+/** Qualquer membro aprovado: live pela câmera do celular, no YouTube da própria conta Google. */
+function GoLiveCard() {
+  return (
+    <div className="card card-pad stack">
+      <div style={{ fontWeight: 650 }}>Fazer uma live</div>
+      <p className="small muted">
+        Transmita pela câmera do celular. A live sai no canal do YouTube da sua conta Google e aparece aqui no app para todos, com notificação.
+      </p>
+      <Link className="btn btn-live btn-block" to="/ao-vivo/transmitir">
+        <VideoIcon /> Transmitir pelo celular
+      </Link>
+    </div>
+  );
+}
+
+/** Equipe de mídia: alguém já está ao vivo no YouTube (por outro canal ou programa) — só avisar o app. */
+function LiveByLink({ onChange }: { onChange: () => Promise<void> }) {
   const wd = WEEKDAYS[new Date().getDay()];
   const [title, setTitle] = useState(`Culto de ${wd}`);
   const [url, setUrl] = useState('');
   const [notify, setNotify] = useState(true);
   const { busy, run } = useAction();
 
-  if (live?.active) {
-    return (
-      <div className="card card-pad stack">
-        <div className="row">
-          <span className="badge live">AO VIVO</span>
-          <span className="small muted">desde {timeOf(live.started_at)} · YouTube</span>
-        </div>
-        <Button
-          variant="danger"
-          icon={<Square />}
-          loading={busy}
-          onClick={async () => {
-            if (!(await confirmDialog({ title: 'Encerrar a live?', text: 'O aviso de "ao vivo" sai do app para todos.', confirmLabel: 'Encerrar', danger: true }))) return;
-            await run(async () => {
-              await api('/live/encerrar', { method: 'POST' });
-              await onChange();
-            }, 'Live encerrada.');
-          }}
-        >
-          Encerrar live
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="card card-pad stack">
-      <div style={{ fontWeight: 650 }}>Começar uma live</div>
-      <p className="small muted">
-        Comece a live no YouTube (celular ou computador) e depois avise aqui. O app mostra o vídeo para todos e manda a notificação.
+    <details className="card card-pad stack">
+      <summary style={{ fontWeight: 650, cursor: 'pointer' }}>Já está ao vivo no YouTube por outro canal? Colar o link</summary>
+      <p className="small muted" style={{ marginTop: 10 }}>
+        Para quando a live foi começada direto no YouTube (celular ou computador): cole o link e o app mostra o vídeo para todos e manda a
+        notificação.
       </p>
       <TextField label="Título" value={title} onChange={setTitle} maxLength={120} />
       <TextField
@@ -76,7 +108,7 @@ function LiveControls({ live, onChange }: { live: Live | null; onChange: () => P
       />
       <Toggle label="Avisar todo mundo (notificação no celular)" checked={notify} onChange={setNotify} />
       <Button
-        variant="live"
+        variant="secondary"
         icon={<MonitorPlay />}
         loading={busy}
         onClick={() =>
@@ -89,12 +121,12 @@ function LiveControls({ live, onChange }: { live: Live | null; onChange: () => P
       >
         Estamos ao vivo
       </Button>
-    </div>
+    </details>
   );
 }
 
 export default function LivePage() {
-  const { church, schedule, isMedia } = useSession();
+  const { church, schedule, isMedia, isMember } = useSession();
   const [live, refresh] = useLiveState();
   const { data: home } = useApi<HomeData>('/home');
   const { data: vids } = useApi<{ videos: Video[] }>('/videos?limite=6');
@@ -164,7 +196,16 @@ export default function LivePage() {
           </div>
         )}
 
-        {isMedia && <LiveControls live={live} onChange={refresh} />}
+        {live?.active ? (
+          live.can_end && <EndLiveCard live={live} onChange={refresh} />
+        ) : (
+          isMember && (
+            <>
+              <GoLiveCard />
+              {isMedia && <LiveByLink onChange={refresh} />}
+            </>
+          )
+        )}
 
         <Section title="Horários dos cultos">
           <div className="card">
