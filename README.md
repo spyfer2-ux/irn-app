@@ -16,13 +16,16 @@ visitante e notificações no celular.
   de enviar), vê em tela cheia, baixa e compartilha no WhatsApp.
 - Dízimos e ofertas: PIX com QR Code e "copia e cola" (com valor e tipo: dízimo, oferta, missões…), dados da conta do
   Bispo Ronaldo e registro da contribuição com foto do comprovante. A tesouraria confere no painel.
+- **Live pela câmera do celular:** qualquer membro aprovado conecta o YouTube da própria conta Google e transmite de
+  dentro do app (não precisa da senha do canal da igreja nem de 50 inscritos). A live aparece em **Ao vivo** para todos,
+  com notificação. Celular que não consegue transmitir pelo app usa o Larix Broadcaster (o app entrega a chave pronta).
 - Pedidos de oração (mural da igreja ou só para a liderança, com opção anônima e botão "Orei"), testemunhos com
   foto e vídeo do YouTube (a liderança aprova antes de publicar; depois de publicado todo mundo vê, até quem
   não tem login), campanhas com diário (ex.: 21 dias de oração), confirmação de presença em
   eventos, células, Casa de Paz, Rede Jovem e Missões com "Quero participar", aniversariantes do mês.
 
-**Equipe de mídia:** live pelo YouTube, envio de vídeos curtos,
-álbuns de fotos.
+**Equipe de mídia:** live por link do YouTube (quando já está ao vivo por outro canal ou programa), envio de vídeos
+curtos, álbuns de fotos.
 
 **Liderança e administração:** aprovação de cadastros, papéis (membro, mídia, liderança, administrador), avisos,
 eventos, Palavra do dia agendada, campanhas, notificações para todos, visitantes, aniversariantes com botão de
@@ -30,7 +33,8 @@ WhatsApp, tesouraria (conferir contribuições, lançar ofertas em dinheiro, pla
 histórico de ações e todas as configurações (logo, endereço, horários, PIX, transmissão).
 
 **Automático (a cada 5 minutos):** lembrete antes de cada culto, lembrete dos eventos, notificação da Palavra do dia,
-parabéns no aniversário (e aviso para a liderança), vídeos novos do YouTube, encerramento de live esquecida e limpeza.
+parabéns no aniversário (e aviso para a liderança), vídeos novos do YouTube, encerramento de live esquecida (inclusive
+no YouTube, se o celular desligou no meio) e limpeza.
 
 ## Bíblia
 
@@ -58,7 +62,8 @@ de novo a partir do eBible.org: `npm run biblia`.
 | Notificações no celular | Grátis |
 | Fotos sem R2 (ficam no banco) | Grátis, até cerca de 1.000–2.000 fotos (limite de 500 MB) |
 | R2 para fotos e vídeos (opcional) | 10 GB grátis por mês, depois cerca de US$ 0,015 por GB |
-| Live pelo YouTube | Grátis |
+| Live pelo YouTube (por link) | Grátis |
+| Live pela câmera do app (Durable Objects, plano grátis) | Grátis: uma live de 3 horas usa cerca de 10% do limite diário |
 
 ## Publicar o app (passo a passo)
 
@@ -130,11 +135,35 @@ Mande o link no grupo de WhatsApp e no Instagram (o link já gera uma prévia bo
 3. A Cloudflare publica de novo sozinha e o botão "Enviar do celular" em Vídeos é liberado. As fotos antigas continuam
    funcionando.
 
-### Lives pelo YouTube
+### Lives pela câmera do app (YouTube de cada pessoa)
 
-Para transmitir pelo celular, o YouTube exige 50 inscritos no canal (o canal da igreja tinha 47 em outubro de 2026);
-pelo computador, com OBS, não há mínimo. Quando a live começar, a equipe de mídia toca em **Ao vivo → Estamos ao vivo**
-(colando o link da live): o vídeo aparece no app para todos e sai a notificação.
+Qualquer membro aprovado faz live em **Ao vivo → Transmitir pelo celular**. A live é criada no canal do YouTube da
+conta Google da própria pessoa, pela API do YouTube — por isso não depende da senha do canal da igreja e **não tem o
+mínimo de 50 inscritos** (essa regra é só do botão "Transmitir" do aplicativo do YouTube). O celular codifica o vídeo
+(H.264) e o áudio (AAC) e manda pelo protocolo RTMP até a "ponte" do app na Cloudflare (um Durable Object,
+`worker/relay.ts`), que repassa para o servidor do YouTube com criptografia (RTMPS). Quando o vídeo chega, a live
+aparece em **Ao vivo** para todos e sai a notificação. Se a internet oscilar, a qualidade baixa sozinha; se cair, o app
+reconecta na mesma live.
+
+**Ligar (uma vez, no Google Cloud do login — o mesmo projeto do passo 3):**
+
+1. console.cloud.google.com → **APIs e serviços → Biblioteca** → procure **YouTube Data API v3** → **Ativar**.
+2. **Google Auth Platform → Acesso a dados → Adicionar ou remover escopos** → marque
+   `https://www.googleapis.com/auth/youtube` ("Gerenciar sua conta do YouTube") → Atualizar → Salvar.
+   O app não é verificado pelo Google: na primeira vez, quem conectar o YouTube vê "O Google não verificou este app" e
+   toca em **Avançado → Acessar**. Funciona para até 100 pessoas conectarem o YouTube.
+3. A ponte (Durable Object `LiveRelay`) já vem no `wrangler.jsonc` e é criada sozinha na próxima publicação.
+
+**Cada pessoa que for transmitir (uma vez):** precisa ter um canal no YouTube e as lives ativadas — em
+youtube.com/verify confirmar o telefone e no YouTube Studio → Criar → Transmitir ao vivo aceitar a ativação (na
+primeira vez o YouTube libera em até 24 horas). O app mostra esse passo a passo se faltar.
+
+**Celular que não transmite pelo app** (iPhone com iOS anterior ao 26, por exemplo): na mesma tela, escolha
+**Outro app (Larix)**. O app cria a live e mostra a chave, com um botão que já configura o Larix Broadcaster (grátis);
+quando o vídeo chega ao YouTube, a live aparece no app do mesmo jeito.
+
+**Live por link (equipe de mídia):** se alguém já está ao vivo no YouTube por outro canal ou programa, em **Ao vivo →
+Já está ao vivo no YouTube por outro canal? Colar o link**, o app mostra o vídeo para todos e manda a notificação.
 
 ### Opcional: endereço próprio
 
@@ -150,6 +179,10 @@ custom domain. Depois, acrescente o novo endereço de redirecionamento no Google
 - **A primeira publicação falhou falando do banco D1:** crie um banco D1 chamado `irn-app` no painel e acrescente no
   `wrangler.jsonc`: `"d1_databases": [{ "binding": "DB", "database_name": "irn-app", "database_id": "<id do banco>" }]`.
 - **Notificação não chega no iPhone:** só funciona com o app instalado na Tela de Início (iOS 16.4 ou mais novo).
+- **"A API do YouTube ainda não foi ativada":** falta o passo 1 de "Lives pela câmera do app" (YouTube Data API v3).
+- **"Sua conta do YouTube ainda não está liberada para fazer lives":** a pessoa precisa ativar a live no YouTube
+  (youtube.com/verify e YouTube Studio → Criar → Transmitir ao vivo); na primeira vez leva até 24 horas.
+- **"Faltou marcar a permissão do YouTube":** na tela do Google, a caixinha do YouTube precisa ficar marcada.
 
 ## Estrutura do projeto
 
@@ -165,6 +198,7 @@ irn-app/
 │
 ├── public/                    arquivos servidos como estão
 │   ├── _headers               cabeçalhos de segurança (CSP) e cache
+│   ├── live-pcm.js            captura o som do microfone para a live pela câmera do app
 │   ├── sw.js                  service worker: funciona sem internet, guarda fotos e livros da Bíblia e recebe notificações
 │   ├── biblia/                textos da Bíblia: livre/ e kjv/, um arquivo por livro (1.json = Gênesis … 66.json = Apocalipse)
 │   └── icons/                 ícones padrão do app, logo provisória e imagem de compartilhamento
@@ -187,10 +221,13 @@ irn-app/
 │   │   ├── upload.ts          envio de fotos e de vídeos em partes
 │   │   ├── push.ts            ativar e escolher notificações
 │   │   ├── ics.ts             "Adicionar à agenda" e compartilhar
+│   │   ├── rtmp.ts            protocolo RTMP (o mesmo do OBS/Larix) para mandar a live ao YouTube
+│   │   ├── livecast.ts        live pela câmera: codifica vídeo H.264 e áudio AAC no celular e envia
 │   │   └── types.ts           formatos dos dados
 │   └── pages/
 │       ├── Home.tsx           Início
-│       ├── Live.tsx           Ao vivo (YouTube ou câmera) e histórico de lives
+│       ├── Live.tsx           Ao vivo (player, "Transmitir pelo celular", live por link) e histórico de lives
+│       ├── Broadcast.tsx      Transmitir: conectar o YouTube, câmera, começar/encerrar, modo Larix
 │       ├── Videos.tsx         Vídeos (YouTube e enviados pelo app)
 │       ├── Photos.tsx         Biblioteca de fotos, álbuns, envio e visualizador
 │       ├── Agenda.tsx         Agenda, evento e confirmação de presença
@@ -206,7 +243,9 @@ irn-app/
 ├── worker/                    SERVIDOR (Cloudflare Worker)
 │   ├── index.ts               entrada: segurança, sessão, rotas e tarefas automáticas
 │   ├── schema.ts              tabelas do banco (o app cria e atualiza sozinho)
-│   ├── auth.ts                login com Google, sessões, perfil e exclusão de conta
+│   ├── auth.ts                login com Google, sessões, perfil, exclusão de conta e conexão do YouTube
+│   ├── youtube.ts             conta do YouTube de cada pessoa (tokens criptografados) e API de lives do YouTube
+│   ├── relay.ts               ponte da live (Durable Object): WebSocket do celular → servidor RTMPS do YouTube
 │   ├── push.ts                notificações: chaves, criptografia e fila de envio
 │   ├── storage.ts             fotos e vídeos no R2 (ou no D1 sem R2)
 │   ├── settings.ts            dados padrão: igreja, horários, PIX, lembretes
@@ -217,7 +256,7 @@ irn-app/
 │       ├── app.ts             dados iniciais, tela de Início, logo e ícones
 │       ├── photos.ts          álbuns e fotos
 │       ├── videos.ts          vídeos e importação do canal do YouTube
-│       ├── live.ts            iniciar e encerrar live
+│       ├── live.ts            lives: pela câmera do app (criar no YouTube, conferir, encerrar, ponte) e por link
 │       ├── community.ts       agenda, avisos, Palavra do dia, campanhas, células e grupos
 │       ├── care.ts            oração, testemunhos, cartão do visitante, aniversariantes
 │       ├── giving.ts          dízimos e ofertas, tesouraria e planilha
@@ -228,9 +267,11 @@ irn-app/
 └── tests/                     testes automáticos
     ├── unit.test.ts           criptografia das notificações, login, PIX, valores, datas
     ├── bible.test.ts          Bíblia: referências, busca, compartilhar e arquivos gerados
+    ├── rtmp.test.ts           live: AMF0, chunks, handshake e publicação num servidor RTMP local (FFmpeg)
+    ├── live-e2e.mjs           live pela câmera de ponta a ponta (celular simulado → ponte → servidor RTMP local)
     ├── e2e.mjs                o app inteiro num celular simulado (visitante, membro, admin, mídia)
     ├── e2e-r2.mjs             fotos e vídeos com o R2 ligado
-    ├── fake-google.mjs        "Google de teste" para testar o login de verdade
+    ├── fake-google.mjs        "Google de teste" (login e API de lives do YouTube) para os testes
     ├── run-e2e.sh             sobe o app local e roda os testes
     ├── stop-servers.py        desliga os servidores de teste
     ├── wrangler.r2.jsonc      configuração de teste com R2
@@ -243,7 +284,8 @@ irn-app/
 | Endereço | Tela | Quem vê |
 |---|---|---|
 | `/` | Início: live, próximo culto, atalhos, Palavra, avisos, eventos, fotos, vídeos, aniversariantes | Todos |
-| `/ao-vivo` | Ao vivo (player e controles da equipe de mídia) | Todos |
+| `/ao-vivo` | Ao vivo (player, "Transmitir pelo celular" e live por link) | Todos |
+| `/ao-vivo/transmitir` | Transmitir pela câmera do celular no YouTube da própria conta | Membros |
 | `/videos`, `/videos/:id` | Vídeos (YouTube e enviados pelo app) | Todos (vídeos "só membros" para membros) |
 | `/fotos`, `/fotos/album/:id` | Biblioteca de fotos | Membros |
 | `/agenda`, `/agenda/:id` | Agenda e evento | Todos |
@@ -264,15 +306,15 @@ irn-app/
 | Papel | Pode |
 |---|---|
 | Aguardando aprovação | Ver o que é público, completar o cadastro e pedir oração para a liderança |
-| Membro | Fotos, oração, testemunhos, campanhas, presença em eventos, dízimos, grupos |
-| Equipe de mídia | Tudo do membro + lives, envio de vídeos, álbuns, moderar fotos |
+| Membro | Fotos, oração, testemunhos, campanhas, presença em eventos, dízimos, grupos, live pela câmera do app |
+| Equipe de mídia | Tudo do membro + live por link, encerrar qualquer live, envio de vídeos, álbuns, moderar fotos |
 | Liderança | Tudo da mídia + avisos, eventos, Palavra, campanhas, grupos, testemunhos, visitantes, notificações |
 | Administrador | Tudo + aprovar pessoas, mudar papéis, tesouraria, configurações e histórico |
 
 ### Banco de dados (D1)
 
 `users` (pessoas e papéis) · `sessions` (logins) · `settings` (configurações) · `media`, `media_blobs`, `media_parts`
-(arquivos) · `albums`, `photos` · `videos`, `lives` · `events`, `event_rsvps` · `notices` · `words` · `prayers`,
+(arquivos) · `albums`, `photos` · `videos`, `lives`, `live_sessions` (lives criadas pelo app no YouTube), `yt_accounts` (YouTube conectado, tokens criptografados) · `events`, `event_rsvps` · `notices` · `words` · `prayers`,
 `prayer_marks` · `testimonies`, `testimony_amens` · `campaigns`, `campaign_members`, `campaign_checkins` ·
 `ministries`, `ministry_requests` · `contributions` · `visitors` · `push_subs`, `notifications` · `marks`, `rate`,
 `audit`, `meta` (controles internos).
